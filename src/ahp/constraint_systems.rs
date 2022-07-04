@@ -122,7 +122,7 @@ pub struct MatrixArithmetization<F: PrimeField> {
     pub evals_on_K: MatrixEvals<F>,
 }
 
-pub(crate) fn arithmetize_matrix<F: PrimeField>(
+pub fn arithmetize_matrix<F: PrimeField>(
     joint_matrix: &Vec<Vec<usize>>,
     a: &Matrix<F>,
     b: &Matrix<F>,
