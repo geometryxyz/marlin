@@ -17,7 +17,8 @@ use derivative::Derivative;
 /* ************************************************************************* */
 /* ************************************************************************* */
 
-pub(crate) fn num_non_zero(joint_matrix: &Vec<Vec<usize>>) -> usize {
+/// Return the number of non-zero values in a matrix
+pub fn num_non_zero(joint_matrix: &Vec<Vec<usize>>) -> usize {
     joint_matrix.iter().map(|row| row.len()).sum()
 }
 
