@@ -9,7 +9,8 @@ use ark_std::{borrow::Borrow, cfg_iter_mut, format, marker::PhantomData, vec};
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
-pub(crate) mod constraint_systems;
+/// Utility functions for matrix arithmetization.
+pub mod constraint_systems;
 /// Describes data structures and the algorithms used by the AHP indexer.
 pub mod indexer;
 /// Describes data structures and the algorithms used by the AHP prover.
