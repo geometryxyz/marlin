@@ -123,6 +123,7 @@ pub struct MatrixArithmetization<F: PrimeField> {
     pub evals_on_K: MatrixEvals<F>,
 }
 
+/// Convert a matrix to polys.
 pub fn arithmetize_matrix<F: PrimeField>(
     joint_matrix: &Vec<Vec<usize>>,
     a: &Matrix<F>,
@@ -206,9 +207,13 @@ pub fn arithmetize_matrix<F: PrimeField>(
         });
     end_timer!(lde_evals_time);
 
+    let last_row_val = row_vec[row_vec.len() - 1];
+    let last_col_val = col_vec[col_vec.len() - 1];
     for _ in count..interpolation_domain.size() {
-        col_vec.push(elems[0]);
-        row_vec.push(elems[0]);
+        col_vec.push(last_col_val);
+        row_vec.push(last_row_val);
+        //col_vec.push(elems[0]);
+        //row_vec.push(elems[0]);
         val_a_vec.push(F::zero());
         val_b_vec.push(F::zero());
         val_c_vec.push(F::zero());
