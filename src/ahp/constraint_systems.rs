@@ -147,6 +147,13 @@ pub fn arithmetize_matrix<F: PrimeField>(
         .flatten()
         .collect::<BTreeMap<(usize, usize), F>>();
 
+    // Each cell contains (field_elem, index)
+    // for each row:
+    //   for each cell
+    //     (row_index, index, field_elem)
+    //
+    // Create a map of (row_index, index) => field_elem 
+
     let b = b
         .iter()
         .enumerate()
@@ -179,6 +186,10 @@ pub fn arithmetize_matrix<F: PrimeField>(
     for (r, row) in joint_matrix.into_iter().enumerate() {
         for i in row {
             let row_val = elems[r];
+            println!("row val_{}: {}", i, row_val);
+            println!("col val_{}: {}", i, elems[*i]);
+
+            
             let col_val = elems[output_domain.reindex_by_subdomain(input_domain, *i)];
 
             // We are dealing with the transpose of M
