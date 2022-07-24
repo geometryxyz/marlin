@@ -3,7 +3,7 @@
 use ark_std::collections::BTreeSet;
 
 use crate::ahp::{
-    constraint_systems::{arithmetize_matrix, MatrixArithmetization},
+    constraint_systems::{arithmetize_matrix, MatrixArithmetization, arithmetize_individual_matrix, IndividualMatrixArithmetization},
     AHPForR1CS, Error, LabeledPolynomial,
 };
 use crate::Vec;
@@ -124,6 +124,15 @@ pub struct Index<F: PrimeField> {
 
     /// Joint arithmetization of the A*, B*, and C* matrices.
     pub joint_arith: MatrixArithmetization<F>,
+
+    /// The A matrix arithmetization
+    pub a_arith: IndividualMatrixArithmetization<F>,
+
+    /// The B matrix arithmetization
+    pub b_arith: IndividualMatrixArithmetization<F>, 
+
+    /// The C matrix arithmetization
+    pub c_arith: IndividualMatrixArithmetization<F>
 }
 
 impl<F: PrimeField> Index<F> {
@@ -221,6 +230,30 @@ impl<F: PrimeField> AHPForR1CS<F> {
         );
         end_timer!(joint_arithmetization_time);
 
+        let a_arith: IndividualMatrixArithmetization::<F> = arithmetize_individual_matrix(
+            &a,
+            domain_k,
+            domain_h,
+            x_domain,
+            "a",
+        );
+
+        let b_arith: IndividualMatrixArithmetization::<F> = arithmetize_individual_matrix(
+            &b,
+            domain_k,
+            domain_h,
+            x_domain,
+            "b",
+        );
+
+        let c_arith: IndividualMatrixArithmetization::<F> = arithmetize_individual_matrix(
+            &c,
+            domain_k,
+            domain_h,
+            x_domain,
+            "c",
+        );
+
         end_timer!(index_time);
         Ok(Index {
             index_info,
@@ -230,6 +263,10 @@ impl<F: PrimeField> AHPForR1CS<F> {
             c,
 
             joint_arith,
+
+            a_arith, 
+            b_arith, 
+            c_arith
         })
     }
 }
