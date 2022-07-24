@@ -80,8 +80,7 @@ impl<F: PrimeField> IndexInfo<F> {
 /// Represents a matrix.
 pub type Matrix<F> = Vec<Vec<(F, usize)>>;
 
-/// Sum three matrices.
-pub fn sum_matrices<F: PrimeField>(
+pub(crate) fn sum_matrices<F: PrimeField>(
     a: &Matrix<F>,
     b: &Matrix<F>,
     c: &Matrix<F>,

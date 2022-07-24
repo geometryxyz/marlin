@@ -17,8 +17,7 @@ use derivative::Derivative;
 /* ************************************************************************* */
 /* ************************************************************************* */
 
-/// Return the number of non-zero values in a matrix
-pub fn num_non_zero(joint_matrix: &Vec<Vec<usize>>) -> usize {
+pub(crate) fn num_non_zero(joint_matrix: &Vec<Vec<usize>>) -> usize {
     joint_matrix.iter().map(|row| row.len()).sum()
 }
 
@@ -123,8 +122,7 @@ pub struct MatrixArithmetization<F: PrimeField> {
     pub evals_on_K: MatrixEvals<F>,
 }
 
-/// Convert a matrix to polys.
-pub fn arithmetize_matrix<F: PrimeField>(
+pub(crate) fn arithmetize_matrix<F: PrimeField>(
     joint_matrix: &Vec<Vec<usize>>,
     a: &Matrix<F>,
     b: &Matrix<F>,
@@ -146,13 +144,6 @@ pub fn arithmetize_matrix<F: PrimeField>(
         .map(|(r, row)| row.iter().map(move |(f, i)| ((r, *i), *f)))
         .flatten()
         .collect::<BTreeMap<(usize, usize), F>>();
-
-    // Each cell contains (field_elem, index)
-    // for each row:
-    //   for each cell
-    //     (row_index, index, field_elem)
-    //
-    // Create a map of (row_index, index) => field_elem 
 
     let b = b
         .iter()
@@ -186,10 +177,6 @@ pub fn arithmetize_matrix<F: PrimeField>(
     for (r, row) in joint_matrix.into_iter().enumerate() {
         for i in row {
             let row_val = elems[r];
-            println!("row val_{}: {}", i, row_val);
-            println!("col val_{}: {}", i, elems[*i]);
-
-            
             let col_val = elems[output_domain.reindex_by_subdomain(input_domain, *i)];
 
             // We are dealing with the transpose of M
@@ -218,13 +205,9 @@ pub fn arithmetize_matrix<F: PrimeField>(
         });
     end_timer!(lde_evals_time);
 
-    let last_row_val = row_vec[row_vec.len() - 1];
-    let last_col_val = col_vec[col_vec.len() - 1];
     for _ in count..interpolation_domain.size() {
-        col_vec.push(last_col_val);
-        row_vec.push(last_row_val);
-        //col_vec.push(elems[0]);
-        //row_vec.push(elems[0]);
+        col_vec.push(elems[0]);
+        row_vec.push(elems[0]);
         val_a_vec.push(F::zero());
         val_b_vec.push(F::zero());
         val_c_vec.push(F::zero());
