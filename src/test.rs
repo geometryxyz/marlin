@@ -135,7 +135,7 @@ mod marlin {
         let universal_srs = MarlinInst::universal_setup(100, 25, 300, rng).unwrap();
 
         // TODO: return to 100
-        for _ in 0..1 {
+        for _ in 0..50 {
             let a = Fr::rand(rng);
             let b = Fr::rand(rng);
             let mut c = a;
@@ -168,7 +168,7 @@ mod marlin {
 
         let universal_srs = MarlinInst::universal_setup(100, 25, 300, rng).unwrap();
 
-        for _ in 0..5 {
+        for _ in 0..50 {
             let a = Fr::rand(rng);
             let b = Fr::rand(rng);
             let mut c = a;
@@ -196,13 +196,13 @@ mod marlin {
         }
     }
 
-    #[test]
-    fn prove_and_verify_index_private_with_tall_matrix_big() {
-        let num_constraints = 100;
-        let num_variables = 25;
+    // #[test]
+    // fn prove_and_verify_index_private_with_tall_matrix_big() {
+    //     let num_constraints = 100;
+    //     let num_variables = 25;
 
-        test_index_private_circuit(num_constraints, num_variables);
-    }
+    //     test_index_private_circuit(num_constraints, num_variables);
+    // }
 
     #[test]
     fn prove_and_verify_with_tall_matrix_big() {
@@ -210,6 +210,7 @@ mod marlin {
         let num_variables = 25;
 
         test_circuit(num_constraints, num_variables);
+        test_index_private_circuit(num_constraints, num_variables);
     }
 
     #[test]
@@ -218,6 +219,7 @@ mod marlin {
         let num_variables = 25;
 
         test_circuit(num_constraints, num_variables);
+        test_index_private_circuit(num_constraints, num_variables);
     }
 
     #[test]
@@ -226,6 +228,7 @@ mod marlin {
         let num_variables = 100;
 
         test_circuit(num_constraints, num_variables);
+        test_index_private_circuit(num_constraints, num_variables);
     }
 
     #[test]
@@ -234,6 +237,7 @@ mod marlin {
         let num_variables = 26;
 
         test_circuit(num_constraints, num_variables);
+        test_index_private_circuit(num_constraints, num_variables);
     }
 
     #[test]
@@ -242,6 +246,7 @@ mod marlin {
         let num_variables = 25;
 
         test_circuit(num_constraints, num_variables);
+        test_index_private_circuit(num_constraints, num_variables);
     }
 
     #[test]
