@@ -191,9 +191,12 @@ pub(crate) fn arithmetize_individual_matrix<F: PrimeField>(
         *v *= &inv;
     });
 
+    let last_column = *col_vec.last().unwrap();
+    let last_row = *row_vec.last().unwrap();
+
     for _ in count..interpolation_domain.size() {
-        col_vec.push(elems[0]);
-        row_vec.push(elems[0]);
+        col_vec.push(last_column);
+        row_vec.push(last_row);
         val_vec.push(F::zero());
     }
 
