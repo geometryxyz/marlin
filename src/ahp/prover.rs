@@ -733,14 +733,21 @@ impl<F: PrimeField> AHPForR1CS<F> {
         let k_size = GeneralEvaluationDomain::<F>::compute_size_of_domain(num_non_zero).unwrap();
 
         vec![Some(k_size - 2), None].into_iter()
-        // vec![None, None, None].into_iter()
+    }
+
+    /// Output the number of oracles sent by the index private prover in the third round.
+    pub fn prover_num_index_private_third_round_oracles() -> usize {
+        3
     }
 
     /// Output the degree bounds of oracles in the third round.
     pub fn index_private_prover_third_round_degree_bounds(
-        _info: &IndexInfo<F>,
+        info: &IndexInfo<F>,
     ) -> impl Iterator<Item = Option<usize>> {
-        vec![None, None, None].into_iter()
+        let num_non_zero = info.num_non_zero;
+        let k_size = GeneralEvaluationDomain::<F>::compute_size_of_domain(num_non_zero).unwrap();
+
+        vec![None, Some(k_size - 2), Some(6*k_size - 7)].into_iter()
     }
 
     /// third round that is used for index private version
@@ -888,7 +895,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
             g_2: LabeledPolynomial::new(
                 "g_2".to_string(),
                 g_2.clone(),
-                None, //Some(domain_k.size() - 2),
+                Some(domain_k.size() - 2),
                 None,
             ),
             h_2: LabeledPolynomial::new("h_2".to_string(), h_2.clone(), None, None),

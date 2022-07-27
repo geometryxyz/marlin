@@ -207,6 +207,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         // query_set.insert(("g_2".into(), ("gamma".into(), gamma)));
         // query_set.insert(("h_2".into(), ("gamma".into(), gamma)));
         // query_set.insert(("f".into(), ("gamma".into(), gamma)));
+        query_set.insert(("g_2".into(), ("gamma".into(), gamma)));
         query_set.insert(("f_sumcheck".into(), ("gamma".into(), gamma)));
 
 

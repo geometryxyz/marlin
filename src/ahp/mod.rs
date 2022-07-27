@@ -324,17 +324,22 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
         // f sumcheck test
 
+        let g_2 = LinearCombination::new("g_2", vec![(F::one(), "g_2")]);
+        let g_2_at_gamma = evals.get_lc_eval(&g_2, gamma)?;
+
         //TODO: add masking polynomial when we clarify about zk sumcheck with Patrysh
         let f_sumcheck = LinearCombination::<F>::new(
             "f_sumcheck",
             vec![
                 (F::one(), "f".into()),
-                (-gamma, "g_2".into()),
+                // (-gamma, "g_2".into()),
+                (-gamma * g_2_at_gamma, LCTerm::One),
                 (-(t_at_beta / k_size), LCTerm::One),
             ],
         );
 
         debug_assert!(evals.get_lc_eval(&f_sumcheck, gamma)?.is_zero());
+        linear_combinations.push(g_2);
         linear_combinations.push(f_sumcheck);
 
         //  Inner sumcheck:
