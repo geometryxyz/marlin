@@ -155,7 +155,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
             .map(|c| c.commitment().clone())
             .collect::<Vec<_>>();
 
-        let index_private_vk: IndexPrivateVerifierKey<F, PC> = IndexPrivateVerifierKey {
+        let _index_private_vk: IndexPrivateVerifierKey<F, PC> = IndexPrivateVerifierKey {
             polys: individual_matrix_poly_commits,
         };
 

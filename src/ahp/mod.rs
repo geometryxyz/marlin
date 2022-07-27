@@ -279,7 +279,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
         // Constants
         let r_alpha_at_beta = domain_h.eval_unnormalized_bivariate_lagrange_poly(alpha, beta);
-        let v_H_at_alpha = domain_h.evaluate_vanishing_polynomial(alpha);
+        let _v_H_at_alpha = domain_h.evaluate_vanishing_polynomial(alpha);
         let v_H_at_beta = domain_h.evaluate_vanishing_polynomial(beta);
         let v_X_at_beta = x_domain.evaluate_vanishing_polynomial(beta);
 
