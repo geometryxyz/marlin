@@ -880,16 +880,11 @@ impl<F: PrimeField> AHPForR1CS<F> {
         assert!(h_2.degree() < 6 * domain_k.size() - 6);
         assert!(g_2.degree() <= domain_k.size() - 2);
 
-        // Temporary remove degree bounds to fix this error in open combinations
-        // else if cur_poly.degree_bound().is_some() {
-        //     return Err(Error::EquationHasDegreeBounds(lc_label));
-        // }
-
         let oracles = ProverIndexPrivateThirdOracles {
             f: LabeledPolynomial::new(
                 "f".to_string(),
                 f_poly.clone(),
-                None, // Some(domain_k.size() - 1),
+                None, // Some(domain_k.size() - 1) -> enable this bound in supported bounds,
                 None,
             ),
             g_2: LabeledPolynomial::new(
