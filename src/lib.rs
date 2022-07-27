@@ -419,6 +419,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
                 second_comms.iter().map(|p| p.commitment().clone()).collect(),
                 third_comms.iter().map(|p| p.commitment().clone()).collect(),
             ];
+
         let labeled_comms: Vec<_> = index_pk
             .index_vk
             .iter()
@@ -457,7 +458,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
                 .find(|lc| &lc.label == label)
                 .ok_or(ahp::Error::MissingEval(label.to_string()))?;
             let eval = polynomials.get_lc_eval(&lc, *point)?;
-            if !AHPForR1CS::<F>::LC_WITH_ZERO_EVAL.contains(&lc.label.as_ref()) {
+            if !AHPForR1CS::<F>::INDEX_PRIVATE_LC_WITH_ZERO_EVAL.contains(&lc.label.as_ref()) {
                 evaluations.push((label.to_string(), eval));
             }
         }
@@ -469,12 +470,10 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
         fs_rng.absorb(&evaluations);
         let opening_challenge: F = u128::rand(&mut fs_rng).into();
 
-        println!("alive here 1!");
-
         let pc_proof = PC::open_combinations(
             &index_pk.committer_key,
             &lc_s,
-            polynomials,
+            polynomials.clone(),
             &labeled_comms,
             &query_set,
             opening_challenge,
@@ -482,9 +481,6 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
             Some(zk_rng),
         )
         .map_err(Error::from_pc_err)?;
-
-        println!("alive here 2!");
-
 
         // Gather prover messages together.
         let prover_messages = vec![prover_first_msg, prover_second_msg, prover_third_msg];
@@ -590,6 +586,128 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
         }
 
         let lc_s = AHPForR1CS::construct_linear_combinations(
+            &public_input,
+            &evaluations,
+            &verifier_state,
+        )?;
+
+        let evaluations_are_correct = PC::check_combinations(
+            &index_vk.verifier_key,
+            &lc_s,
+            &commitments,
+            &query_set,
+            &evaluations,
+            &proof.pc_proof,
+            opening_challenge,
+            rng,
+        )
+        .map_err(Error::from_pc_err)?;
+
+        if !evaluations_are_correct {
+            eprintln!("PC::Check failed");
+        }
+        end_timer!(verifier_time, || format!(
+            " PC::Check for AHP Verifier linear equations: {}",
+            evaluations_are_correct
+        ));
+        Ok(evaluations_are_correct)
+    }
+
+    /// Verify that a proof for the constrain system defined by `C` asserts that
+    /// all constraints are satisfied where circuit is private.
+    pub fn verify_index_private<R: RngCore>(
+        index_vk: &IndexVerifierKey<F, PC>,
+        public_input: &[F],
+        proof: &Proof<F, PC>,
+        rng: &mut R,
+    ) -> Result<bool, Error<PC::Error>> {
+        let verifier_time = start_timer!(|| "Marlin::Verify");
+
+        let public_input = {
+            let domain_x = GeneralEvaluationDomain::<F>::new(public_input.len() + 1).unwrap();
+
+            let mut unpadded_input = public_input.to_vec();
+            unpadded_input.resize(
+                core::cmp::max(public_input.len(), domain_x.size() - 1),
+                F::zero(),
+            );
+
+            unpadded_input
+        };
+
+        let mut fs_rng =
+            FS::initialize(&to_bytes![&Self::PROTOCOL_NAME, &index_vk, &public_input].unwrap());
+
+        // --------------------------------------------------------------------
+        // First round
+
+        let first_comms = &proof.commitments[0];
+        fs_rng.absorb(&to_bytes![first_comms, proof.prover_messages[0]].unwrap());
+
+        let (_, verifier_state) =
+            AHPForR1CS::verifier_first_round(index_vk.index_info, &mut fs_rng)?;
+        // --------------------------------------------------------------------
+
+        // --------------------------------------------------------------------
+        // Second round
+        let second_comms = &proof.commitments[1];
+        fs_rng.absorb(&to_bytes![second_comms, proof.prover_messages[1]].unwrap());
+
+        let (_, verifier_state) = AHPForR1CS::verifier_second_round(verifier_state, &mut fs_rng);
+        // --------------------------------------------------------------------
+
+        // --------------------------------------------------------------------
+        // Third round
+        let third_comms = &proof.commitments[2];
+        fs_rng.absorb(&to_bytes![third_comms, proof.prover_messages[2]].unwrap());
+
+        let verifier_state = AHPForR1CS::verifier_third_round(verifier_state, &mut fs_rng);
+        // --------------------------------------------------------------------
+
+        // Collect degree bounds for commitments. Indexed polynomials have *no*
+        // degree bounds because we know the committed index polynomial has the
+        // correct degree.
+        let index_info = index_vk.index_info;
+        let degree_bounds = vec![None; index_vk.index_comms.len()]
+            .into_iter()
+            .chain(AHPForR1CS::prover_first_round_degree_bounds(&index_info))
+            .chain(AHPForR1CS::prover_second_round_degree_bounds(&index_info))
+            .chain(AHPForR1CS::index_private_prover_third_round_degree_bounds(&index_info))
+            .collect::<Vec<_>>();
+
+        // Gather commitments in one vector.
+        let commitments: Vec<_> = index_vk
+            .iter()
+            .chain(first_comms)
+            .chain(second_comms)
+            .chain(third_comms)
+            .cloned()
+            .zip(AHPForR1CS::<F>::index_private_polynomial_labels())
+            .zip(degree_bounds)
+            .map(|((c, l), d)| LabeledCommitment::new(l, c, d))
+            .collect();
+
+        let (query_set, verifier_state) =
+            AHPForR1CS::index_private_verifier_query_set(verifier_state, &mut fs_rng);
+
+        fs_rng.absorb(&proof.evaluations);
+        let opening_challenge: F = u128::rand(&mut fs_rng).into();
+
+        let mut evaluations = Evaluations::new();
+        let mut evaluation_labels = Vec::new();
+        for (poly_label, (_, point)) in query_set.iter().cloned() {
+            if AHPForR1CS::<F>::INDEX_PRIVATE_LC_WITH_ZERO_EVAL.contains(&poly_label.as_ref()) {
+                evaluations.insert((poly_label, point), F::zero());
+            } else {
+                evaluation_labels.push((poly_label, point));
+            }
+        }
+        evaluation_labels.sort_by(|a, b| a.0.cmp(&b.0));
+        for (q, eval) in evaluation_labels.into_iter().zip(&proof.evaluations) {
+            evaluations.insert(q, *eval);
+        }
+
+        let lc_s = AHPForR1CS::construct_linear_combinations_for_index_private(
             &public_input,
             &evaluations,
             &verifier_state,

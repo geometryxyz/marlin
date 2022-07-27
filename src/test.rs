@@ -168,7 +168,7 @@ mod marlin {
 
         let universal_srs = MarlinInst::universal_setup(100, 25, 300, rng).unwrap();
 
-        for _ in 0..100 {
+        for _ in 0..5 {
             let a = Fr::rand(rng);
             let b = Fr::rand(rng);
             let mut c = a;
@@ -189,10 +189,10 @@ mod marlin {
             let proof = MarlinInst::index_private_prove(&index_pk, circ, rng).unwrap();
             println!("Called prover");
 
-            // assert!(MarlinInst::verify(&index_vk, &[c, d], &proof, rng).unwrap());
-            // println!("Called verifier");
-            // println!("\nShould not verify (i.e. verifier messages should print below):");
-            // assert!(!MarlinInst::verify(&index_vk, &[a, a], &proof, rng).unwrap());
+            assert!(MarlinInst::verify_index_private(&index_vk, &[c, d], &proof, rng).unwrap());
+            println!("Called verifier");
+            println!("\nShould not verify (i.e. verifier messages should print below):");
+            assert!(!MarlinInst::verify_index_private(&index_vk, &[a, a], &proof, rng).unwrap());
         }
     }
 

@@ -916,6 +916,14 @@ impl<F: PrimeField> AHPForR1CS<F> {
         let k_size = GeneralEvaluationDomain::<F>::compute_size_of_domain(num_non_zero).unwrap();
 
         vec![Some(k_size - 2), None].into_iter()
+        // vec![None, None, None].into_iter()
+    }
+
+    /// Output the degree bounds of oracles in the third round.
+    pub fn index_private_prover_third_round_degree_bounds(
+        _info: &IndexInfo<F>,
+    ) -> impl Iterator<Item = Option<usize>> {
+        vec![None, None, None].into_iter()
     }
 
     /// third round that is used for index private version

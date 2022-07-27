@@ -44,13 +44,32 @@ impl<F: PrimeField> AHPForR1CS<F> {
         "g_2", "h_2",
     ];
 
+    /// The labels for the polynomials output by the AHP index private prover.
+    #[rustfmt::skip]
+    pub const INDEX_PRIVATE_PROVER_POLYNOMIALS: [&'static str; 10] = [
+        // First sumcheck
+        "w", "z_a", "z_b", "mask_poly", "t", "g_1", "h_1",
+        // Second sumcheck
+        "f", "g_2", "h_2",
+    ];
+
     /// THe linear combinations that are statically known to evaluate to zero.
     pub const LC_WITH_ZERO_EVAL: [&'static str; 2] = ["inner_sumcheck", "outer_sumcheck"];
+    /// THe linear combinations that are statically known to evaluate to zero in index private version.
+    pub const INDEX_PRIVATE_LC_WITH_ZERO_EVAL: [&'static str; 2] = ["outer_sumcheck", "f_sumcheck"];
+
 
     pub(crate) fn polynomial_labels() -> impl Iterator<Item = String> {
         Self::INDEXER_POLYNOMIALS
             .iter()
             .chain(&Self::PROVER_POLYNOMIALS)
+            .map(|s| s.to_string())
+    }
+
+    pub(crate) fn index_private_polynomial_labels() -> impl Iterator<Item = String> {
+        Self::INDEXER_POLYNOMIALS
+            .iter()
+            .chain(&Self::INDEX_PRIVATE_PROVER_POLYNOMIALS)
             .map(|s| s.to_string())
     }
 
