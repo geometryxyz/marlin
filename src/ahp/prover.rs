@@ -206,6 +206,23 @@ impl<F: Field> ProverThirdOracles<F> {
     }
 }
 
+/// The third set of prover oracles.
+pub struct ProverIndexPrivateThirdOracles<F: Field> {
+    /// The polynomial `f` resulting from the a / b
+    pub f: LabeledPolynomial<F>,
+    /// The polynomial `g` resulting from the second sumcheck.
+    pub g_2: LabeledPolynomial<F>,
+    /// The polynomial `h` resulting from the second sumcheck.
+    pub h_2: LabeledPolynomial<F>,
+}
+
+impl<F: Field> ProverIndexPrivateThirdOracles<F> {
+    /// Iterate over the polynomials output by the prover in the third round.
+    pub fn iter(&self) -> impl Iterator<Item = &LabeledPolynomial<F>> {
+        vec![&self.f, &self.g_2, &self.h_2].into_iter()
+    }
+}
+
 impl<F: PrimeField> AHPForR1CS<F> {
     /// Initialize the AHP prover.
     pub fn prover_init<'a, C: ConstraintSynthesizer<F>>(
@@ -648,89 +665,88 @@ impl<F: PrimeField> AHPForR1CS<F> {
         };
         end_timer!(a_poly_time);
 
-        let a_backup_poly = {
-            let a_row = index.a_arith.row.polynomial();
-            let a_col = index.a_arith.col.polynomial();
-            let a_val = index.a_arith.val.polynomial();
+        // let a_backup_poly = {
+        //     let a_row = index.a_arith.row.polynomial();
+        //     let a_col = index.a_arith.col.polynomial();
+        //     let a_val = index.a_arith.val.polynomial();
 
-            let b_row = index.b_arith.row.polynomial();
-            let b_col = index.b_arith.col.polynomial();
-            let b_val = index.b_arith.val.polynomial();
+        //     let b_row = index.b_arith.row.polynomial();
+        //     let b_col = index.b_arith.col.polynomial();
+        //     let b_val = index.b_arith.val.polynomial();
 
-            let c_row = index.c_arith.row.polynomial();
-            let c_col = index.c_arith.col.polynomial();
-            let c_val = index.c_arith.val.polynomial();
+        //     let c_row = index.c_arith.row.polynomial();
+        //     let c_col = index.c_arith.col.polynomial();
+        //     let c_val = index.c_arith.val.polynomial();
 
+        //     let pt1 = {
+        //         let p0 = &(DensePolynomial::from_coefficients_slice(&[eta_a_times_v_H_alpha_v_H_beta])) * a_val;
 
-            let pt1 = {
-                let p0 = &(DensePolynomial::from_coefficients_slice(&[eta_a_times_v_H_alpha_v_H_beta])) * a_val;
+        //         let p1 =
+        //             &(&(DensePolynomial::from_coefficients_slice(&[beta])) - b_row) *
+        //             &(&(DensePolynomial::from_coefficients_slice(&[alpha])) - b_col);
 
-                let p1 = 
-                    &(&(DensePolynomial::from_coefficients_slice(&[beta])) - b_row) *
-                    &(&(DensePolynomial::from_coefficients_slice(&[alpha])) - b_col);
+        //         let p2 =
+        //         &(&(DensePolynomial::from_coefficients_slice(&[beta])) - c_row) *
+        //         &(&(DensePolynomial::from_coefficients_slice(&[alpha])) - c_col);
 
-                let p2 = 
-                &(&(DensePolynomial::from_coefficients_slice(&[beta])) - c_row) *
-                &(&(DensePolynomial::from_coefficients_slice(&[alpha])) - c_col);
+        //         &(&p0 * &p1) * &p2
+        //     };
 
-                &(&p0 * &p1) * &p2
-            };
+        //     let pt2 = {
+        //         let p0 = &(DensePolynomial::from_coefficients_slice(&[eta_b_times_v_H_alpha_v_H_beta])) * b_val;
 
-            let pt2 = {
-                let p0 = &(DensePolynomial::from_coefficients_slice(&[eta_b_times_v_H_alpha_v_H_beta])) * b_val;
+        //         let p1 =
+        //             &(&(DensePolynomial::from_coefficients_slice(&[beta])) - a_row) *
+        //             &(&(DensePolynomial::from_coefficients_slice(&[alpha])) - a_col);
 
-                let p1 = 
-                    &(&(DensePolynomial::from_coefficients_slice(&[beta])) - a_row) *
-                    &(&(DensePolynomial::from_coefficients_slice(&[alpha])) - a_col);
+        //         let p2 =
+        //         &(&(DensePolynomial::from_coefficients_slice(&[beta])) - c_row) *
+        //         &(&(DensePolynomial::from_coefficients_slice(&[alpha])) - c_col);
 
-                let p2 = 
-                &(&(DensePolynomial::from_coefficients_slice(&[beta])) - c_row) *
-                &(&(DensePolynomial::from_coefficients_slice(&[alpha])) - c_col);
+        //         &(&p0 * &p1) * &p2
+        //     };
 
-                &(&p0 * &p1) * &p2
-            };
+        //     let pt3 = {
+        //         let p0 = &(DensePolynomial::from_coefficients_slice(&[eta_c_times_v_H_alpha_v_H_beta])) * c_val;
 
-            let pt3 = {
-                let p0 = &(DensePolynomial::from_coefficients_slice(&[eta_c_times_v_H_alpha_v_H_beta])) * c_val;
+        //         let p1 =
+        //             &(&(DensePolynomial::from_coefficients_slice(&[beta])) - a_row) *
+        //             &(&(DensePolynomial::from_coefficients_slice(&[alpha])) - a_col);
 
-                let p1 = 
-                    &(&(DensePolynomial::from_coefficients_slice(&[beta])) - a_row) *
-                    &(&(DensePolynomial::from_coefficients_slice(&[alpha])) - a_col);
+        //         let p2 =
+        //         &(&(DensePolynomial::from_coefficients_slice(&[beta])) - b_row) *
+        //         &(&(DensePolynomial::from_coefficients_slice(&[alpha])) - b_col);
 
-                let p2 = 
-                &(&(DensePolynomial::from_coefficients_slice(&[beta])) - b_row) *
-                &(&(DensePolynomial::from_coefficients_slice(&[alpha])) - b_col);
+        //         &(&p0 * &p1) * &p2
+        //     };
 
-                &(&p0 * &p1) * &p2
-            };
+        //     pt1 + pt2 + pt3
+        // };
 
-            pt1 + pt2 + pt3
-        };
+        // let b_backup_poly = {
+        //     let a_row = index.a_arith.row.polynomial();
+        //     let a_col = index.a_arith.col.polynomial();
 
-        let b_backup_poly = {
-            let a_row = index.a_arith.row.polynomial();
-            let a_col = index.a_arith.col.polynomial();
+        //     let b_row = index.b_arith.row.polynomial();
+        //     let b_col = index.b_arith.col.polynomial();
 
-            let b_row = index.b_arith.row.polynomial();
-            let b_col = index.b_arith.col.polynomial();
+        //     let c_row = index.c_arith.row.polynomial();
+        //     let c_col = index.c_arith.col.polynomial();
 
-            let c_row = index.c_arith.row.polynomial();
-            let c_col = index.c_arith.col.polynomial();
+        //     let p0 =
+        //     &(&(DensePolynomial::from_coefficients_slice(&[beta])) - a_row) *
+        //     &(&(DensePolynomial::from_coefficients_slice(&[alpha])) - a_col);
 
-            let p0 =
-            &(&(DensePolynomial::from_coefficients_slice(&[beta])) - a_row) *
-            &(&(DensePolynomial::from_coefficients_slice(&[alpha])) - a_col);
+        //     let p1 =
+        //     &(&(DensePolynomial::from_coefficients_slice(&[beta])) - b_row) *
+        //     &(&(DensePolynomial::from_coefficients_slice(&[alpha])) - b_col);
 
-            let p1 =
-            &(&(DensePolynomial::from_coefficients_slice(&[beta])) - b_row) *
-            &(&(DensePolynomial::from_coefficients_slice(&[alpha])) - b_col);
+        //     let p2 =
+        //     &(&(DensePolynomial::from_coefficients_slice(&[beta])) - c_row) *
+        //     &(&(DensePolynomial::from_coefficients_slice(&[alpha])) - c_col);
 
-            let p2 =
-            &(&(DensePolynomial::from_coefficients_slice(&[beta])) - c_row) *
-            &(&(DensePolynomial::from_coefficients_slice(&[alpha])) - c_col);
-
-            &(&p0 * &p1) * &p2
-        };
+        //     &(&p0 * &p1) * &p2
+        // };
 
         let (row_on_K, col_on_K, row_col_on_K) = (
             &joint_arith.evals_on_K.row,
@@ -790,114 +806,17 @@ impl<F: PrimeField> AHPForR1CS<F> {
         assert!(h_2.degree() <= domain_k.size() - 2);
         assert!(g_2.degree() <= domain_k.size() - 2);
         let oracles = ProverThirdOracles {
-            g_2: LabeledPolynomial::new("g_2".to_string(), g_2.clone(), Some(domain_k.size() - 2), None),
+            g_2: LabeledPolynomial::new(
+                "g_2".to_string(),
+                g_2.clone(),
+                Some(domain_k.size() - 2),
+                None,
+            ),
             h_2: LabeledPolynomial::new("h_2".to_string(), h_2.clone(), None, None),
         };
         end_timer!(round_time);
 
-        let r_alpha_x_evals =
-            domain_h.batch_eval_unnormalized_bivariate_lagrange_poly_with_diff_inputs(alpha);
-        let t_poly = Self::calculate_t(
-            vec![&prover_state.index.a, &prover_state.index.b, &prover_state.index.c].into_iter(),
-            &[eta_a, eta_b, eta_c],
-            prover_state.domain_x,
-            prover_state.domain_h,
-            r_alpha_x_evals.clone(),
-        );
-
-        /* THIS ALL WORKS */
-        // let a_sum_over_k = {
-        //     let a_row = index.a_arith.row.polynomial();
-        //     let a_col = index.a_arith.col.polynomial();
-        //     let a_val = index.a_arith.val.polynomial();
-
-        //     let a_part_nom = &DensePolynomial::from_coefficients_slice(&[v_H_alpha_v_H_beta]) * a_val;
-        //     let a_part_denom =
-        //     &(&(DensePolynomial::from_coefficients_slice(&[beta])) - a_row) *
-        //     &(&(DensePolynomial::from_coefficients_slice(&[alpha])) - a_col);
-
-        //     let mut sum = F::zero();
-
-        //     for elem in domain_k.elements() {
-        //         let nom = a_part_nom.evaluate(&elem);
-        //         let denom = a_part_denom.evaluate(&elem);
-
-        //         sum += nom * denom.inverse().unwrap();
-        //     }
-
-        //     sum
-        // };
-
-        // let a_t = Self::calculate_individual_t(
-        //     &index.a, 
-        //     prover_state.domain_x,
-        //     prover_state.domain_h,
-        //     r_alpha_x_evals.clone(),
-        // );
-
-        // assert_eq!(a_sum_over_k, a_t.evaluate(&beta));
-
-        // let b_sum_over_k = {
-        //     let row = index.b_arith.row.polynomial();
-        //     let col = index.b_arith.col.polynomial();
-        //     let val = index.b_arith.val.polynomial();
-
-        //     let part_nom = &DensePolynomial::from_coefficients_slice(&[v_H_alpha_v_H_beta]) * val;
-        //     let part_denom =
-        //     &(&(DensePolynomial::from_coefficients_slice(&[beta])) - row) *
-        //     &(&(DensePolynomial::from_coefficients_slice(&[alpha])) - col);
-
-        //     let mut sum = F::zero();
-
-        //     for elem in domain_k.elements() {
-        //         let nom = part_nom.evaluate(&elem);
-        //         let denom = part_denom.evaluate(&elem);
-
-        //         sum += nom * denom.inverse().unwrap();
-        //     }
-
-        //     sum
-        // };
-
-        // let b_t = Self::calculate_individual_t(
-        //     &index.b, 
-        //     prover_state.domain_x,
-        //     prover_state.domain_h,
-        //     r_alpha_x_evals.clone(),
-        // );
-
-        // assert_eq!(b_sum_over_k, b_t.evaluate(&beta));
-
-        // let c_sum_over_k = {
-        //     let row = index.c_arith.row.polynomial();
-        //     let col = index.c_arith.col.polynomial();
-        //     let val = index.c_arith.val.polynomial();
-
-        //     let part_nom = &DensePolynomial::from_coefficients_slice(&[v_H_alpha_v_H_beta]) * val;
-        //     let part_denom =
-        //     &(&(DensePolynomial::from_coefficients_slice(&[beta])) - row) *
-        //     &(&(DensePolynomial::from_coefficients_slice(&[alpha])) - col);
-
-        //     let mut sum = F::zero();
-
-        //     for elem in domain_k.elements() {
-        //         let nom = part_nom.evaluate(&elem);
-        //         let denom = part_denom.evaluate(&elem);
-
-        //         sum += nom * denom.inverse().unwrap();
-        //     }
-
-        //     sum
-        // };
-
-        // let c_t = Self::calculate_individual_t(
-        //     &index.c, 
-        //     prover_state.domain_x,
-        //     prover_state.domain_h,
-        //     r_alpha_x_evals.clone(),
-        // );
-
-        // assert_eq!(c_sum_over_k, c_t.evaluate(&beta));
+        let _ = Self::prover_index_private_third_round(ver_message, prover_state, _r);
 
         // let m_sum_over_k = {
         //     let a_row = index.a_arith.row.polynomial();
@@ -951,35 +870,35 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
         // assert_eq!(m_sum_over_k, t_poly.evaluate(&beta));
         /* THIS ALL WORKS */
-        
 
-        let f_evals_backup = domain_k.elements().map(|elem| {
-            a_backup_poly.evaluate(&elem) * b_backup_poly.evaluate(&elem).inverse().unwrap()
-        }).collect::<Vec<F>>();
+        // let f_evals_backup = domain_k.elements().map(|elem| {
+        //     a_backup_poly.evaluate(&elem) * b_backup_poly.evaluate(&elem).inverse().unwrap()
+        // }).collect::<Vec<F>>();
 
-        let f_backup_poly = EvaluationsOnDomain::from_vec_and_domain(f_evals_backup, domain_k).interpolate();
+        // let f_backup_poly = EvaluationsOnDomain::from_vec_and_domain(f_evals_backup, domain_k).interpolate();
 
-        let h_2_backup = (&a_backup_poly - &(&b_backup_poly * &f_backup_poly))
-            .divide_by_vanishing_poly(domain_k)
-        .unwrap()
-        .0;
-        let g_2_backup = DensePolynomial::from_coefficients_slice(&f_backup_poly.coeffs[1..]);
+        // let h_2_backup = (&a_backup_poly - &(&b_backup_poly * &f_backup_poly))
+        //     .divide_by_vanishing_poly(domain_k)
+        // .unwrap()
+        // .0;
+        // let g_2_backup = DensePolynomial::from_coefficients_slice(&f_backup_poly.coeffs[1..]);
 
+        // let beta2 = F::from(123131u64);
 
-        let beta2 = F::from(123131u64);
+        // let x_poly = DensePolynomial::from_coefficients_slice(&[F::zero(), F::one()]);
 
-        let x_poly = DensePolynomial::from_coefficients_slice(&[F::zero(), F::one()]);
+        // let sumcheck_eval = t_poly.evaluate(&beta) * domain_k.size_as_field_element().inverse().unwrap();
+        // assert_eq!(f_backup_poly, (&x_poly * &g_2_backup) + DensePolynomial::from_coefficients_slice(&[sumcheck_eval]));
 
-        let sumcheck_eval = t_poly.evaluate(&beta) * domain_k.size_as_field_element().inverse().unwrap();
-        assert_eq!(f_backup_poly, (&x_poly * &g_2_backup) + DensePolynomial::from_coefficients_slice(&[sumcheck_eval]));
+        // assert_eq!(f_backup_poly.evaluate(&beta2), beta2*g_2_backup.evaluate(&beta2) + sumcheck_eval);
 
-        assert_eq!(f_backup_poly.evaluate(&beta2), beta2*g_2_backup.evaluate(&beta2) + sumcheck_eval);
+        // assert_eq!(
+        //     h_2_backup.evaluate(&beta2) * domain_k.evaluate_vanishing_polynomial(beta2),
+        //     a_backup_poly.evaluate(&beta2) -
+        //         b_backup_poly.evaluate(&beta2) * (beta2 * g_2_backup.evaluate(&beta2) + sumcheck_eval)
+        // );
 
-        assert_eq!(
-            h_2_backup.evaluate(&beta2) * domain_k.evaluate_vanishing_polynomial(beta2),
-            a_backup_poly.evaluate(&beta2) - 
-                b_backup_poly.evaluate(&beta2) * (beta2 * g_2_backup.evaluate(&beta2) + sumcheck_eval)
-        );
+        // println!("a_poly_degree: {}, domain_size: {}", a_backup_poly.degree(), domain_k.size());
 
         Ok((msg, oracles))
     }
@@ -997,5 +916,159 @@ impl<F: PrimeField> AHPForR1CS<F> {
         let k_size = GeneralEvaluationDomain::<F>::compute_size_of_domain(num_non_zero).unwrap();
 
         vec![Some(k_size - 2), None].into_iter()
+    }
+
+    /// third round that is used for index private version
+    pub fn prover_index_private_third_round<'a, R: RngCore>(
+        ver_message: &VerifierSecondMsg<F>,
+        prover_state: ProverState<'a, F>,
+        _r: &mut R,
+    ) -> Result<(ProverMsg<F>, ProverIndexPrivateThirdOracles<F>), Error> {
+        let ProverState {
+            index,
+            verifier_first_msg,
+            domain_h,
+            domain_k,
+            ..
+        } = prover_state;
+
+        let VerifierFirstMsg {
+            eta_a,
+            eta_b,
+            eta_c,
+            alpha,
+        } = verifier_first_msg.expect(
+            "ProverState should include verifier_first_msg when prover_third_round is called",
+        );
+
+        let beta = ver_message.beta;
+
+        let v_H_at_alpha = domain_h.evaluate_vanishing_polynomial(alpha);
+        let v_H_at_beta = domain_h.evaluate_vanishing_polynomial(beta);
+
+        let v_H_alpha_v_H_beta = v_H_at_alpha * v_H_at_beta;
+        let eta_a_times_v_H_alpha_v_H_beta = eta_a * v_H_alpha_v_H_beta;
+        let eta_b_times_v_H_alpha_v_H_beta = eta_b * v_H_alpha_v_H_beta;
+        let eta_c_times_v_H_alpha_v_H_beta = eta_c * v_H_alpha_v_H_beta;
+
+        let a_row = index.a_arith.row.polynomial();
+        let a_col = index.a_arith.col.polynomial();
+        let a_val = index.a_arith.val.polynomial();
+
+        let b_row = index.b_arith.row.polynomial();
+        let b_col = index.b_arith.col.polynomial();
+        let b_val = index.b_arith.val.polynomial();
+
+        let c_row = index.c_arith.row.polynomial();
+        let c_col = index.c_arith.col.polynomial();
+        let c_val = index.c_arith.val.polynomial();
+
+        let a_part_denom = &(&(DensePolynomial::from_coefficients_slice(&[beta])) - a_row)
+            * &(&(DensePolynomial::from_coefficients_slice(&[alpha])) - a_col);
+
+        let b_part_denom = &(&(DensePolynomial::from_coefficients_slice(&[beta])) - b_row)
+            * &(&(DensePolynomial::from_coefficients_slice(&[alpha])) - b_col);
+
+        let c_part_denom = &(&(DensePolynomial::from_coefficients_slice(&[beta])) - c_row)
+            * &(&(DensePolynomial::from_coefficients_slice(&[alpha])) - c_col);
+
+        let b_poly = &(&a_part_denom * &b_part_denom) * &c_part_denom;
+
+        let a_part_nom =
+            &(DensePolynomial::from_coefficients_slice(&[eta_a_times_v_H_alpha_v_H_beta])) * a_val;
+        let b_part_nom =
+            &(DensePolynomial::from_coefficients_slice(&[eta_b_times_v_H_alpha_v_H_beta])) * b_val;
+        let c_part_nom =
+            &(DensePolynomial::from_coefficients_slice(&[eta_c_times_v_H_alpha_v_H_beta])) * c_val;
+
+        let a_poly = {
+            let summand_0 = &a_part_nom * &(&b_part_denom * &c_part_denom);
+            let summand_1 = &b_part_nom * &(&a_part_denom * &c_part_denom);
+            let summand_2 = &c_part_nom * &(&a_part_denom * &b_part_denom);
+
+            summand_0 + summand_1 + summand_2
+        };
+
+        let f_evals = domain_k
+            .elements()
+            .map(|elem| a_poly.evaluate(&elem) * b_poly.evaluate(&elem).inverse().unwrap())
+            .collect::<Vec<F>>();
+
+        let f_poly = EvaluationsOnDomain::from_vec_and_domain(f_evals, domain_k).interpolate();
+
+        let h_2 = (&a_poly - &(&b_poly * &f_poly))
+            .divide_by_vanishing_poly(domain_k)
+            .unwrap()
+            .0;
+
+        let g_2 = DensePolynomial::from_coefficients_slice(&f_poly.coeffs[1..]);
+
+        /* BEGIN SANITY CHECKS */
+        let r_alpha_x_evals =
+            domain_h.batch_eval_unnormalized_bivariate_lagrange_poly_with_diff_inputs(alpha);
+        let t_poly = Self::calculate_t(
+            vec![
+                &prover_state.index.a,
+                &prover_state.index.b,
+                &prover_state.index.c,
+            ]
+            .into_iter(),
+            &[eta_a, eta_b, eta_c],
+            prover_state.domain_x,
+            prover_state.domain_h,
+            r_alpha_x_evals.clone(),
+        );
+
+        let beta2 = F::from(123131u64);
+
+        let x_poly = DensePolynomial::from_coefficients_slice(&[F::zero(), F::one()]);
+
+        let sumcheck_eval =
+            t_poly.evaluate(&beta) * domain_k.size_as_field_element().inverse().unwrap();
+        assert_eq!(
+            f_poly,
+            (&x_poly * &g_2) + DensePolynomial::from_coefficients_slice(&[sumcheck_eval])
+        );
+
+        assert_eq!(
+            f_poly.evaluate(&beta2),
+            beta2 * g_2.evaluate(&beta2) + sumcheck_eval
+        );
+
+        assert_eq!(
+            h_2.evaluate(&beta2) * domain_k.evaluate_vanishing_polynomial(beta2),
+            a_poly.evaluate(&beta2)
+                - b_poly.evaluate(&beta2) * (beta2 * g_2.evaluate(&beta2) + sumcheck_eval)
+        );
+
+        /* END SANITY CHECKS */
+
+        let msg = ProverMsg::EmptyMessage;
+
+        // assert!(h_2.degree() < 6 * domain_k.size() - 6);
+        assert!(g_2.degree() <= domain_k.size() - 2);
+
+        // Temporary remove degree bounds to fix this error in open combinations
+        // else if cur_poly.degree_bound().is_some() {
+        //     return Err(Error::EquationHasDegreeBounds(lc_label));
+        // }
+
+        let oracles = ProverIndexPrivateThirdOracles {
+            f: LabeledPolynomial::new(
+                "f".to_string(),
+                f_poly.clone(),
+                None, // Some(domain_k.size() - 1),
+                None,
+            ),
+            g_2: LabeledPolynomial::new(
+                "g_2".to_string(),
+                g_2.clone(),
+                None, //Some(domain_k.size() - 2),
+                None,
+            ),
+            h_2: LabeledPolynomial::new("h_2".to_string(), h_2.clone(), None, None),
+        };
+
+        Ok((msg, oracles))
     }
 }

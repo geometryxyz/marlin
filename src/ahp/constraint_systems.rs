@@ -137,7 +137,7 @@ pub(crate) struct IndividualMatrixEvals<F: PrimeField> {
 
 #[derive(Derivative, CanonicalSerialize, CanonicalDeserialize)]
 #[derivative(Debug(bound = "F: PrimeField"), Clone(bound = "F: PrimeField"))]
-pub struct IndividualMatrixArithmetization<F: PrimeField> {
+pub(crate) struct IndividualMatrixArithmetization<F: PrimeField> {
     /// LDE of the row indices of M^*.
     pub(crate) row: LabeledPolynomial<F>,
     /// LDE of the column indices of M^*.
@@ -159,9 +159,9 @@ pub(crate) fn arithmetize_individual_matrix<F: PrimeField>(
     let elems: Vec<_> = output_domain.elements().collect();
 
     let eq_poly_vals: BTreeMap<F, F> = output_domain
-    .elements()
-    .zip(output_domain.batch_eval_unnormalized_bivariate_lagrange_poly_with_same_inputs())
-    .collect();
+        .elements()
+        .zip(output_domain.batch_eval_unnormalized_bivariate_lagrange_poly_with_same_inputs())
+        .collect();
 
     let mut row_vec = Vec::with_capacity(interpolation_domain.size());
     let mut col_vec = Vec::with_capacity(interpolation_domain.size());
@@ -177,7 +177,7 @@ pub(crate) fn arithmetize_individual_matrix<F: PrimeField>(
             // We are dealing with the transpose of M
             row_vec.push(col_val);
             col_vec.push(row_val);
-            
+            // We insert zeros if a matrix doesn't contain an entry at the given (row, col) location.
             val_vec.push(*val);
             inverses.push(eq_poly_vals[&col_val]);
 
@@ -187,11 +187,9 @@ pub(crate) fn arithmetize_individual_matrix<F: PrimeField>(
     ark_ff::batch_inversion::<F>(&mut inverses);
     drop(eq_poly_vals);
 
-    cfg_iter_mut!(val_vec)
-        .zip(inverses)
-        .for_each(|(v, inv)| {
-            *v *= &inv;
-        });
+    cfg_iter_mut!(val_vec).zip(inverses).for_each(|(v, inv)| {
+        *v *= &inv;
+    });
 
     for _ in count..interpolation_domain.size() {
         col_vec.push(elems[0]);
@@ -201,8 +199,7 @@ pub(crate) fn arithmetize_individual_matrix<F: PrimeField>(
 
     let row_evals_on_K = EvaluationsOnDomain::from_vec_and_domain(row_vec, interpolation_domain);
     let col_evals_on_K = EvaluationsOnDomain::from_vec_and_domain(col_vec, interpolation_domain);
-    let val_evals_on_K =
-        EvaluationsOnDomain::from_vec_and_domain(val_vec, interpolation_domain);
+    let val_evals_on_K = EvaluationsOnDomain::from_vec_and_domain(val_vec, interpolation_domain);
 
     let row = row_evals_on_K.clone().interpolate();
     let col = col_evals_on_K.clone().interpolate();
@@ -211,7 +208,7 @@ pub(crate) fn arithmetize_individual_matrix<F: PrimeField>(
     let evals_on_K = IndividualMatrixEvals {
         row: row_evals_on_K,
         col: col_evals_on_K,
-        val: val_evals_on_K
+        val: val_evals_on_K,
     };
 
     IndividualMatrixArithmetization {
@@ -220,9 +217,7 @@ pub(crate) fn arithmetize_individual_matrix<F: PrimeField>(
         val: LabeledPolynomial::new(format!("{}_val", m_prefix).into(), val, None, None),
         evals_on_K,
     }
-
 }
-
 
 pub(crate) fn arithmetize_matrix<F: PrimeField>(
     joint_matrix: &Vec<Vec<usize>>,

@@ -80,7 +80,13 @@ impl<F: PrimeField> AHPForR1CS<F> {
             .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
         let domain_k_size = GeneralEvaluationDomain::<F>::compute_size_of_domain(num_non_zero)
             .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+
+        // For index private version: bound(h_2) = 6k - 6
+        // deg(row_col) = 2k - 2, and we have 2k - 2  + 2k - 2 + 2k - 2 for each matrix
+        // then + k - 1 for f and - k for vanishing
+
         Ok(*[
+            6 * domain_k_size - 6,
             2 * domain_h_size + zk_bound - 2,
             3 * domain_h_size + 2 * zk_bound - 3, //  mask_poly
             domain_h_size,
@@ -215,6 +221,137 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
         linear_combinations.push(g_2);
         linear_combinations.push(inner_sumcheck);
+
+        linear_combinations.sort_by(|a, b| a.label.cmp(&b.label));
+        Ok(linear_combinations)
+    }
+
+    /// Construct the linear combinations that are checked by the AHP.
+    #[allow(non_snake_case)]
+    pub fn construct_linear_combinations_for_index_private<E>(
+        public_input: &[F],
+        evals: &E,
+        state: &verifier::VerifierState<F>,
+    ) -> Result<Vec<LinearCombination<F>>, Error>
+    where
+        E: EvaluationsProvider<F>,
+    {
+        let domain_h = state.domain_h;
+        let domain_k = state.domain_k;
+        let k_size = domain_k.size_as_field_element();
+
+        let public_input = constraint_systems::format_public_input(public_input);
+        if !Self::formatted_public_input_is_admissible(&public_input) {
+            return Err(Error::InvalidPublicInputLength);
+        }
+        let x_domain = GeneralEvaluationDomain::new(public_input.len())
+            .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+
+        let first_round_msg = state.first_round_msg.unwrap();
+        let alpha = first_round_msg.alpha;
+        let eta_a = first_round_msg.eta_a;
+        let eta_b = first_round_msg.eta_b;
+        let eta_c = first_round_msg.eta_c;
+
+        let beta = state.second_round_msg.unwrap().beta;
+        let gamma = state.gamma.unwrap();
+
+        let mut linear_combinations = Vec::new();
+
+        // Constants
+        let r_alpha_at_beta = domain_h.eval_unnormalized_bivariate_lagrange_poly(alpha, beta);
+        let v_H_at_alpha = domain_h.evaluate_vanishing_polynomial(alpha);
+        let v_H_at_beta = domain_h.evaluate_vanishing_polynomial(beta);
+        let v_X_at_beta = x_domain.evaluate_vanishing_polynomial(beta);
+
+        // Outer sumcheck:
+        let z_b = LinearCombination::new("z_b", vec![(F::one(), "z_b")]);
+        let g_1 = LinearCombination::new("g_1", vec![(F::one(), "g_1")]);
+        let t = LinearCombination::new("t", vec![(F::one(), "t")]);
+
+        let z_b_at_beta = evals.get_lc_eval(&z_b, beta)?;
+        let t_at_beta = evals.get_lc_eval(&t, beta)?;
+        let g_1_at_beta = evals.get_lc_eval(&g_1, beta)?;
+
+        let x_at_beta = x_domain
+            .evaluate_all_lagrange_coefficients(beta)
+            .into_iter()
+            .zip(public_input)
+            .map(|(l, x)| l * &x)
+            .fold(F::zero(), |x, y| x + &y);
+
+        #[rustfmt::skip]
+            let outer_sumcheck = LinearCombination::new(
+                "outer_sumcheck",
+                vec![
+                    (F::one(), "mask_poly".into()),
+    
+                    (r_alpha_at_beta * (eta_a + eta_c * z_b_at_beta), "z_a".into()),
+                    (r_alpha_at_beta * eta_b * z_b_at_beta, LCTerm::One),
+    
+                    (-t_at_beta * v_X_at_beta, "w".into()),
+                    (-t_at_beta * x_at_beta, LCTerm::One),
+    
+                    (-v_H_at_beta, "h_1".into()),
+                    (-beta * g_1_at_beta, LCTerm::One),
+                ],
+            );
+        debug_assert!(evals.get_lc_eval(&outer_sumcheck, beta)?.is_zero());
+
+        linear_combinations.push(z_b);
+        linear_combinations.push(g_1);
+        linear_combinations.push(t);
+        linear_combinations.push(outer_sumcheck);
+
+        // f sumcheck test
+
+        //TODO: add masking polynomial when we clarify about zk sumcheck with Patrysh
+        let f_sumcheck = LinearCombination::<F>::new(
+            "f_sumcheck",
+            vec![
+                (F::one(), "f".into()),
+                (-gamma, "g_2".into()),
+                (-(t_at_beta / k_size), LCTerm::One),
+            ],
+        );
+
+        debug_assert!(evals.get_lc_eval(&f_sumcheck, gamma)?.is_zero());
+        linear_combinations.push(f_sumcheck);
+
+        //  Inner sumcheck:
+        // let beta_alpha = beta * alpha;
+        // let g_2 = LinearCombination::new("g_2", vec![(F::one(), "g_2")]);
+
+        // let g_2_at_gamma = evals.get_lc_eval(&g_2, gamma)?;
+
+        // let v_K_at_gamma = domain_k.evaluate_vanishing_polynomial(gamma);
+
+        // let mut a = LinearCombination::new(
+        //     "a_poly",
+        //     vec![(eta_a, "a_val"), (eta_b, "b_val"), (eta_c, "c_val")],
+        // );
+        // a *= v_H_at_alpha * v_H_at_beta;
+
+        // let mut b = LinearCombination::new(
+        //     "denom",
+        //     vec![
+        //         (beta_alpha, LCTerm::One),
+        //         (-alpha, "row".into()),
+        //         (-beta, "col".into()),
+        //         (F::one(), "row_col".into()),
+        //     ],
+        // );
+        // b *= gamma * g_2_at_gamma + &(t_at_beta / k_size);
+
+        // let mut inner_sumcheck = a;
+        // inner_sumcheck -= &b;
+        // inner_sumcheck -= &LinearCombination::new("h_2", vec![(v_K_at_gamma, "h_2")]);
+
+        // inner_sumcheck.label = "inner_sumcheck".into();
+        // debug_assert!(evals.get_lc_eval(&inner_sumcheck, gamma)?.is_zero());
+
+        // linear_combinations.push(g_2);
+        // linear_combinations.push(inner_sumcheck);
 
         linear_combinations.sort_by(|a, b| a.label.cmp(&b.label));
         Ok(linear_combinations)

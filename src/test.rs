@@ -134,7 +134,8 @@ mod marlin {
 
         let universal_srs = MarlinInst::universal_setup(100, 25, 300, rng).unwrap();
 
-        for _ in 0..100 {
+        // TODO: return to 100
+        for _ in 0..1 {
             let a = Fr::rand(rng);
             let b = Fr::rand(rng);
             let mut c = a;
@@ -160,6 +161,47 @@ mod marlin {
             println!("\nShould not verify (i.e. verifier messages should print below):");
             assert!(!MarlinInst::verify(&index_vk, &[a, a], &proof, rng).unwrap());
         }
+    }
+
+    fn test_index_private_circuit(num_constraints: usize, num_variables: usize) {
+        let rng = &mut ark_std::test_rng();
+
+        let universal_srs = MarlinInst::universal_setup(100, 25, 300, rng).unwrap();
+
+        for _ in 0..100 {
+            let a = Fr::rand(rng);
+            let b = Fr::rand(rng);
+            let mut c = a;
+            c.mul_assign(&b);
+            let mut d = c;
+            d.mul_assign(&b);
+
+            let circ = Circuit {
+                a: Some(a),
+                b: Some(b),
+                num_constraints,
+                num_variables,
+            };
+
+            let (index_pk, index_vk) = MarlinInst::index(&universal_srs, circ.clone()).unwrap();
+            println!("Called index");
+
+            let proof = MarlinInst::index_private_prove(&index_pk, circ, rng).unwrap();
+            println!("Called prover");
+
+            // assert!(MarlinInst::verify(&index_vk, &[c, d], &proof, rng).unwrap());
+            // println!("Called verifier");
+            // println!("\nShould not verify (i.e. verifier messages should print below):");
+            // assert!(!MarlinInst::verify(&index_vk, &[a, a], &proof, rng).unwrap());
+        }
+    }
+
+    #[test]
+    fn prove_and_verify_index_private_with_tall_matrix_big() {
+        let num_constraints = 100;
+        let num_variables = 25;
+
+        test_index_private_circuit(num_constraints, num_variables);
     }
 
     #[test]

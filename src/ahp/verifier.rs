@@ -186,4 +186,31 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
         (query_set, state)
     }
+
+    /// Output the query state and next round state.
+    pub fn index_private_verifier_query_set<'a, R: RngCore>(
+        state: VerifierState<F>,
+        _: &'a mut R,
+    ) -> (QuerySet<F>, VerifierState<F>) {
+
+        let beta = state.second_round_msg.unwrap().beta;
+
+        let gamma = state.gamma.unwrap();
+
+        let mut query_set = QuerySet::new();
+
+        query_set.insert(("g_1".into(), ("beta".into(), beta)));
+        query_set.insert(("z_b".into(), ("beta".into(), beta)));
+        query_set.insert(("t".into(), ("beta".into(), beta)));
+        query_set.insert(("outer_sumcheck".into(), ("beta".into(), beta)));
+
+        // query_set.insert(("g_2".into(), ("gamma".into(), gamma)));
+        // query_set.insert(("h_2".into(), ("gamma".into(), gamma)));
+        // query_set.insert(("f".into(), ("gamma".into(), gamma)));
+        query_set.insert(("f_sumcheck".into(), ("gamma".into(), gamma)));
+
+
+        // query_set.insert(("inner_sumcheck".into(), ("gamma".into(), gamma)));
+        (query_set, state)
+    }
 }

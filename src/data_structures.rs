@@ -91,6 +91,40 @@ where
         }
     }
 }
+/// Verifier key that will be used in index private version
+/// Prover will commit to matrix arithmetizations and this data will be used for
+/// slt and diag testing
+#[derive(CanonicalSerialize, CanonicalDeserialize, Clone)]
+pub struct IndexPrivateVerifierKey<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>> {
+    // /// matrix a row commitment
+    // pub a_row_commit: PC::Commitment,
+
+    // /// matrix a col commitment
+    // pub a_col_commit: PC::Commitment,
+
+    // /// matrix a val commitment
+    // pub a_val_commit: PC::Commitment,
+
+    // /// matrix b row commitment
+    // pub b_row_commit: PC::Commitment,
+
+    // /// matrix b col commitment
+    // pub b_col_commit: PC::Commitment,
+
+    // /// matrix b val commitment
+    // pub b_val_commit: PC::Commitment,
+
+    // /// matrix c row commitment
+    // pub c_row_commit: PC::Commitment,
+
+    // /// matrix c col commitment
+    // pub c_col_commit: PC::Commitment,
+
+    // /// matrix c val commitment
+    // pub c_val_commit: PC::Commitment,
+    /// a(row, col, val), b(row, col, val), c(row, col, val),
+    pub polys: Vec<PC::Commitment>,
+}
 
 /* ************************************************************************* */
 /* ************************************************************************* */

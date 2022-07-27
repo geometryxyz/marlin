@@ -3,7 +3,10 @@
 use ark_std::collections::BTreeSet;
 
 use crate::ahp::{
-    constraint_systems::{arithmetize_matrix, MatrixArithmetization, arithmetize_individual_matrix, IndividualMatrixArithmetization},
+    constraint_systems::{
+        arithmetize_individual_matrix, arithmetize_matrix, IndividualMatrixArithmetization,
+        MatrixArithmetization,
+    },
     AHPForR1CS, Error, LabeledPolynomial,
 };
 use crate::Vec;
@@ -126,13 +129,13 @@ pub struct Index<F: PrimeField> {
     pub joint_arith: MatrixArithmetization<F>,
 
     /// The A matrix arithmetization
-    pub a_arith: IndividualMatrixArithmetization<F>,
+    pub(crate) a_arith: IndividualMatrixArithmetization<F>,
 
     /// The B matrix arithmetization
-    pub b_arith: IndividualMatrixArithmetization<F>, 
+    pub(crate) b_arith: IndividualMatrixArithmetization<F>,
 
     /// The C matrix arithmetization
-    pub c_arith: IndividualMatrixArithmetization<F>
+    pub(crate) c_arith: IndividualMatrixArithmetization<F>,
 }
 
 impl<F: PrimeField> Index<F> {
@@ -150,6 +153,22 @@ impl<F: PrimeField> Index<F> {
             &self.joint_arith.val_b,
             &self.joint_arith.val_c,
             &self.joint_arith.row_col,
+        ]
+        .into_iter()
+    }
+
+    /// Iterate individual matrix polys
+    pub fn iter_individual_matrices(&self) -> impl Iterator<Item = &LabeledPolynomial<F>> {
+        ark_std::vec![
+            &self.a_arith.row,
+            &self.a_arith.col,
+            &self.a_arith.val,
+            &self.b_arith.row,
+            &self.b_arith.col,
+            &self.b_arith.val,
+            &self.c_arith.row,
+            &self.c_arith.col,
+            &self.c_arith.val,
         ]
         .into_iter()
     }
@@ -230,29 +249,14 @@ impl<F: PrimeField> AHPForR1CS<F> {
         );
         end_timer!(joint_arithmetization_time);
 
-        let a_arith: IndividualMatrixArithmetization::<F> = arithmetize_individual_matrix(
-            &a,
-            domain_k,
-            domain_h,
-            x_domain,
-            "a",
-        );
+        let a_arith: IndividualMatrixArithmetization<F> =
+            arithmetize_individual_matrix(&a, domain_k, domain_h, x_domain, "a");
 
-        let b_arith: IndividualMatrixArithmetization::<F> = arithmetize_individual_matrix(
-            &b,
-            domain_k,
-            domain_h,
-            x_domain,
-            "b",
-        );
+        let b_arith: IndividualMatrixArithmetization<F> =
+            arithmetize_individual_matrix(&b, domain_k, domain_h, x_domain, "b");
 
-        let c_arith: IndividualMatrixArithmetization::<F> = arithmetize_individual_matrix(
-            &c,
-            domain_k,
-            domain_h,
-            x_domain,
-            "c",
-        );
+        let c_arith: IndividualMatrixArithmetization<F> =
+            arithmetize_individual_matrix(&c, domain_k, domain_h, x_domain, "c");
 
         end_timer!(index_time);
         Ok(Index {
@@ -264,9 +268,9 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
             joint_arith,
 
-            a_arith, 
-            b_arith, 
-            c_arith
+            a_arith,
+            b_arith,
+            c_arith,
         })
     }
 }
