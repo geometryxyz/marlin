@@ -91,10 +91,35 @@ where
         }
     }
 }
+
+/// Proving key for a index private specific index (i.e., R1CS matrices).
+#[derive(CanonicalSerialize, CanonicalDeserialize)]
+pub struct IndexPrivateProverKey<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>> {
+    /// The index verifier key.
+    pub index_private_vk: IndexPrivateVerifierKey<F, PC>,
+    /// The index itself.
+    pub index: Index<F>, /// TODO: this should be changed to just PrivateIndex
+    /// The committer key for this index, trimmed from the universal SRS.
+    pub committer_key: PC::CommitterKey,
+}
+
+impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>> Clone for IndexPrivateProverKey<F, PC>
+where
+    PC::Commitment: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            index_private_vk: self.index_private_vk.clone(),
+            index: self.index.clone(),
+            committer_key: self.committer_key.clone(),
+        }
+    }
+}
+
 /// Verifier key that will be used in index private version
 /// Prover will commit to matrix arithmetizations and this data will be used for
 /// slt and diag testing
-#[derive(CanonicalSerialize, CanonicalDeserialize, Clone)]
+#[derive(CanonicalSerialize, CanonicalDeserialize)]
 pub struct IndexPrivateVerifierKey<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>> {
     // /// matrix a row commitment
     // pub a_row_commit: PC::Commitment,
@@ -123,7 +148,28 @@ pub struct IndexPrivateVerifierKey<F: PrimeField, PC: PolynomialCommitment<F, De
     // /// matrix c val commitment
     // pub c_val_commit: PC::Commitment,
     /// a(row, col, val), b(row, col, val), c(row, col, val),
+    
+    /// commitments of (row, col, val) for each matrix
     pub polys: Vec<PC::Commitment>,
+
+    /// verifier key
+    pub verifier_key: PC::VerifierKey,
+
+    /// Stores information about the size of the index, as well as its field of
+    /// definition.
+    pub index_info: IndexInfo<F>,
+}
+
+impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>> Clone
+    for IndexPrivateVerifierKey<F, PC>
+{
+    fn clone(&self) -> Self {
+        Self {
+            polys: self.polys.clone(),
+            index_info: self.index_info.clone(),
+            verifier_key: self.verifier_key.clone(),
+        }
+    }
 }
 
 /* ************************************************************************* */

@@ -183,7 +183,7 @@ mod marlin {
                 num_variables,
             };
 
-            let (index_pk, index_vk) = MarlinInst::index(&universal_srs, circ.clone()).unwrap();
+            let (index_pk, index_vk) = MarlinInst::index_for_index_private(&universal_srs, circ.clone()).unwrap();
             println!("Called index");
 
             let proof = MarlinInst::index_private_prove(&index_pk, circ, rng).unwrap();
@@ -193,6 +193,17 @@ mod marlin {
             println!("Called verifier");
             println!("\nShould not verify (i.e. verifier messages should print below):");
             assert!(!MarlinInst::verify_index_private(&index_vk, &[a, a], &proof, rng).unwrap());
+
+            // let (index_pk, index_vk) = MarlinInst::index(&universal_srs, circ.clone()).unwrap();
+            // println!("Called index");
+
+            // let proof = MarlinInst::index_private_prove(&index_pk, circ, rng).unwrap();
+            // println!("Called prover");
+
+            // assert!(MarlinInst::verify_index_private(&index_vk, &[c, d], &proof, rng).unwrap());
+            // println!("Called verifier");
+            // println!("\nShould not verify (i.e. verifier messages should print below):");
+            // assert!(!MarlinInst::verify_index_private(&index_vk, &[a, a], &proof, rng).unwrap());
         }
     }
 

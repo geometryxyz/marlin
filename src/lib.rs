@@ -144,24 +144,59 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
 
         end_timer!(index_time);
 
-        /* BEGIN: Commit to each matrix row, col, val poly and construct vk for index private version */
+        Ok((index_pk, index_vk))
+    }
+
+    /// Generate the index-specific (i.e., circuit-specific) prover and verifier
+    /// keys. This is not a deterministic algorithm since circuit is known only by the prover.
+    pub fn index_for_index_private<C: ConstraintSynthesizer<F>>(
+        srs: &UniversalSRS<F, PC>,
+        c: C,
+    ) -> Result<(IndexPrivateProverKey<F, PC>, IndexPrivateVerifierKey<F, PC>), Error<PC::Error>> {
+        let index_time = start_timer!(|| "Marlin::Index");
+
+        // TODO: Add check that c is in the correct mode.
+        // TODO: change this to work only with individual matrices
+        let index = AHPForR1CS::index(c)?;
+        if srs.max_degree() < index.max_degree() {
+            Err(Error::IndexTooLarge)?;
+        }
+
+        let coeff_support = AHPForR1CS::get_degree_bounds(&index.index_info);
+        // Marlin only needs degree 2 random polynomials
+        let supported_hiding_bound = 1;
+        let (committer_key, verifier_key) = PC::trim(
+            &srs,
+            index.max_degree(),
+            supported_hiding_bound,
+            Some(&coeff_support),
+        )
+        .map_err(Error::from_pc_err)?;
 
         let (individual_matrix_poly_commits, _): (_, _) =
-            PC::commit(&committer_key, index.iter_individual_matrices(), None)
-                .map_err(Error::from_pc_err)?;
+        PC::commit(&committer_key, index.iter_individual_matrices(), None)
+            .map_err(Error::from_pc_err)?;
 
         let individual_matrix_poly_commits = individual_matrix_poly_commits
             .iter()
             .map(|c| c.commitment().clone())
             .collect::<Vec<_>>();
 
-        let _index_private_vk: IndexPrivateVerifierKey<F, PC> = IndexPrivateVerifierKey {
+        let index_private_vk: IndexPrivateVerifierKey<F, PC> = IndexPrivateVerifierKey {
             polys: individual_matrix_poly_commits,
+            verifier_key,
+            index_info: index.index_info,
         };
 
-        /* END */
+        let index_private_pk = IndexPrivateProverKey {
+            index: index.clone(),
+            index_private_vk: index_private_vk.clone(),
+            committer_key: committer_key.clone(),
+        };
 
-        Ok((index_pk, index_vk))
+        end_timer!(index_time);
+
+        Ok((index_private_pk, index_private_vk))
     }
 
     /// Create a zkSNARK asserting that the constraint system is satisfied.
@@ -329,7 +364,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
 
     /// Create a zkSNARK asserting that the constraint system is satisfied where circuit is private.
     pub fn index_private_prove<C: ConstraintSynthesizer<F>, R: RngCore>(
-        index_pk: &IndexProverKey<F, PC>,
+        index_pk: &IndexPrivateProverKey<F, PC>,
         c: C,
         zk_rng: &mut R,
     ) -> Result<Proof<F, PC>, Error<PC::Error>> {
@@ -339,7 +374,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
         let prover_init_state = AHPForR1CS::prover_init(&index_pk.index, c)?;
         let public_input = prover_init_state.public_input();
         let mut fs_rng = FS::initialize(
-            &to_bytes![&Self::PROTOCOL_NAME, &index_pk.index_vk, &public_input].unwrap(),
+            &to_bytes![&Self::PROTOCOL_NAME, &public_input].unwrap(), // TODO: &index_pk.index_private_vk -> solve tobytes issue
         );
 
         // --------------------------------------------------------------------
@@ -360,7 +395,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
         fs_rng.absorb(&to_bytes![first_comms, prover_first_msg].unwrap());
 
         let (verifier_first_msg, verifier_state) =
-            AHPForR1CS::verifier_first_round(index_pk.index_vk.index_info, &mut fs_rng)?;
+            AHPForR1CS::verifier_first_round(index_pk.index_private_vk.index_info, &mut fs_rng)?;
         // --------------------------------------------------------------------
 
         // --------------------------------------------------------------------
@@ -627,7 +662,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
     /// Verify that a proof for the constrain system defined by `C` asserts that
     /// all constraints are satisfied where circuit is private.
     pub fn verify_index_private<R: RngCore>(
-        index_vk: &IndexVerifierKey<F, PC>,
+        index_vk: &IndexPrivateVerifierKey<F, PC>,
         public_input: &[F],
         proof: &Proof<F, PC>,
         rng: &mut R,
@@ -647,7 +682,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
         };
 
         let mut fs_rng =
-            FS::initialize(&to_bytes![&Self::PROTOCOL_NAME, &index_vk, &public_input].unwrap());
+            FS::initialize(&to_bytes![&Self::PROTOCOL_NAME, &public_input].unwrap()); //TODO: solve tobytes for &index_vk
 
         // --------------------------------------------------------------------
         // First round
