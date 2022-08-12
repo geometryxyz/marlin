@@ -45,6 +45,9 @@ pub struct ProverState<'a, F: PrimeField> {
     /// the blinding polynomial for the first round
     mask_poly: Option<LabeledPolynomial<F>>,
 
+    /// the blinding polynomial for the inner sumcheck
+    inner_mask_poly: Option<LabeledPolynomial<F>>,
+
     /// domain X, sized for the public input
     domain_x: GeneralEvaluationDomain<F>,
 
@@ -171,6 +174,28 @@ impl<F: Field> ProverFirstOracles<F> {
     /// Iterate over the polynomials output by the prover in the first round.
     pub fn iter(&self) -> impl Iterator<Item = &LabeledPolynomial<F>> {
         vec![&self.w, &self.z_a, &self.z_b, &self.mask_poly].into_iter()
+    }
+}
+
+/// The first set of prover oracles for index private version.
+pub struct ProverIndexPrivateFirstOracles<F: Field> {
+    /// The LDE of `w`.
+    pub w: LabeledPolynomial<F>,
+    /// The LDE of `Az`.
+    pub z_a: LabeledPolynomial<F>,
+    /// The LDE of `Bz`.
+    pub z_b: LabeledPolynomial<F>,
+    /// The sum-check hiding polynomial.
+    pub mask_poly: LabeledPolynomial<F>,
+
+    /// The inner sum-check hiding polynomial.
+    pub inner_mask_poly: LabeledPolynomial<F>,
+}
+
+impl<F: Field> ProverIndexPrivateFirstOracles<F> {
+    /// Iterate over the polynomials output by the prover in the index private first round.
+    pub fn iter(&self) -> impl Iterator<Item = &LabeledPolynomial<F>> {
+        vec![&self.w, &self.z_a, &self.z_b, &self.mask_poly, &self.inner_mask_poly].into_iter()
     }
 }
 
@@ -316,6 +341,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
             index,
             verifier_first_msg: None,
             mask_poly: None,
+            inner_mask_poly: None,
             domain_h,
             domain_k,
             domain_x,
@@ -418,6 +444,113 @@ impl<F: PrimeField> AHPForR1CS<F> {
         Ok((msg, oracles, state))
     }
 
+    /// Output the index private first round message and the next state.
+    pub fn prover_index_private_first_round<'a, R: RngCore>(
+        mut state: ProverState<'a, F>,
+        rng: &mut R,
+    ) -> Result<(ProverMsg<F>, ProverIndexPrivateFirstOracles<F>, ProverState<'a, F>), Error> {
+        let round_time = start_timer!(|| "AHP::Prover::FirstRound");
+        let domain_h = state.domain_h;
+        let domain_k =  state.domain_k;
+        let zk_bound = state.zk_bound;
+
+        let v_H = domain_h.vanishing_polynomial().into();
+
+        let x_time = start_timer!(|| "Computing x polynomial and evals");
+        let domain_x = state.domain_x;
+        let x_poly = EvaluationsOnDomain::from_vec_and_domain(
+            state.formatted_input_assignment.clone(),
+            domain_x,
+        )
+        .interpolate();
+        let x_evals = domain_h.fft(&x_poly);
+        end_timer!(x_time);
+
+        let ratio = domain_h.size() / domain_x.size();
+
+        let mut w_extended = state.witness_assignment.clone();
+        w_extended.extend(vec![
+            F::zero();
+            domain_h.size()
+                - domain_x.size()
+                - state.witness_assignment.len()
+        ]);
+
+        let w_poly_time = start_timer!(|| "Computing w polynomial");
+        let w_poly_evals = cfg_into_iter!(0..domain_h.size())
+            .map(|k| {
+                if k % ratio == 0 {
+                    F::zero()
+                } else {
+                    w_extended[k - (k / ratio) - 1] - &x_evals[k]
+                }
+            })
+            .collect();
+
+        let w_poly = &EvaluationsOnDomain::from_vec_and_domain(w_poly_evals, domain_h)
+            .interpolate()
+            + &(&DensePolynomial::from_coefficients_slice(&[F::rand(rng)]) * &v_H);
+        let (w_poly, remainder) = w_poly.divide_by_vanishing_poly(domain_x).unwrap();
+        assert!(remainder.is_zero());
+        end_timer!(w_poly_time);
+
+        let z_a_poly_time = start_timer!(|| "Computing z_A polynomial");
+        let z_a = state.z_a.clone().unwrap();
+        let z_a_poly = &EvaluationsOnDomain::from_vec_and_domain(z_a, domain_h).interpolate()
+            + &(&DensePolynomial::from_coefficients_slice(&[F::rand(rng)]) * &v_H);
+        end_timer!(z_a_poly_time);
+
+        let z_b_poly_time = start_timer!(|| "Computing z_B polynomial");
+        let z_b = state.z_b.clone().unwrap();
+        let z_b_poly = &EvaluationsOnDomain::from_vec_and_domain(z_b, domain_h).interpolate()
+            + &(&DensePolynomial::from_coefficients_slice(&[F::rand(rng)]) * &v_H);
+        end_timer!(z_b_poly_time);
+
+        let mask_poly_time = start_timer!(|| "Computing mask polynomial");
+        let mask_poly_degree = 3 * domain_h.size() + 2 * zk_bound - 3;
+        let mut mask_poly = DensePolynomial::rand(mask_poly_degree, rng);
+        let scaled_sigma_1 = (mask_poly.divide_by_vanishing_poly(domain_h).unwrap().1)[0];
+        mask_poly[0] -= &scaled_sigma_1;
+        end_timer!(mask_poly_time);
+
+        let mask_poly_inner_time = start_timer!(|| "Computing mask polynomial for inner zk sumcheck");
+        let inner_mask_poly_degree = domain_k.size() - 1;
+        let mut inner_mask_poly = DensePolynomial::rand(inner_mask_poly_degree, rng);
+        let scaled_sigma_inner = (inner_mask_poly.divide_by_vanishing_poly(domain_k).unwrap().1)[0];
+        inner_mask_poly[0] -= &scaled_sigma_inner;
+        end_timer!(mask_poly_inner_time);
+
+        let msg = ProverMsg::EmptyMessage;
+
+        assert!(w_poly.degree() < domain_h.size() - domain_x.size() + zk_bound);
+        assert!(z_a_poly.degree() < domain_h.size() + zk_bound);
+        assert!(z_b_poly.degree() < domain_h.size() + zk_bound);
+        assert!(mask_poly.degree() <= 3 * domain_h.size() + 2 * zk_bound - 3);
+
+        let w = LabeledPolynomial::new("w".to_string(), w_poly, None, Some(1));
+        let z_a = LabeledPolynomial::new("z_a".to_string(), z_a_poly, None, Some(1));
+        let z_b = LabeledPolynomial::new("z_b".to_string(), z_b_poly, None, Some(1));
+        let mask_poly =
+            LabeledPolynomial::new("mask_poly".to_string(), mask_poly.clone(), None, None);
+        let inner_mask_poly = LabeledPolynomial::new("inner_mask_poly".to_string(), inner_mask_poly, None, None);
+        
+
+        let oracles = ProverIndexPrivateFirstOracles {
+            w: w.clone(),
+            z_a: z_a.clone(),
+            z_b: z_b.clone(),
+            mask_poly: mask_poly.clone(),
+            inner_mask_poly: inner_mask_poly.clone()
+        };
+
+        state.w_poly = Some(w);
+        state.mz_polys = Some((z_a, z_b));
+        state.mask_poly = Some(mask_poly);
+        end_timer!(round_time);
+
+        Ok((msg, oracles, state))
+    }
+
     fn calculate_t<'a>(
         matrices: impl Iterator<Item = &'a Matrix<F>>,
         matrix_randomizers: &[F],
@@ -442,11 +575,23 @@ impl<F: PrimeField> AHPForR1CS<F> {
         4
     }
 
+    /// Output the number of oracles sent by the prover in the index private first round.
+    pub fn prover_num_index_private_first_round_oracles() -> usize {
+        5
+    }
+
     /// Output the degree bounds of oracles in the first round.
     pub fn prover_first_round_degree_bounds(
         _info: &IndexInfo<F>,
     ) -> impl Iterator<Item = Option<usize>> {
         vec![None; 4].into_iter()
+    }
+
+    /// Output the degree bounds of oracles in the index private first round.
+    pub fn prover_index_private_first_round_degree_bounds(
+        _info: &IndexInfo<F>,
+    ) -> impl Iterator<Item = Option<usize>> {
+        vec![None; 5].into_iter()
     }
 
     /// Output the second round message and the next state.

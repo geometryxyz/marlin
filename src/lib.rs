@@ -346,7 +346,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
         // First round
 
         let (prover_first_msg, prover_first_oracles, prover_state) =
-            AHPForR1CS::prover_first_round(prover_init_state, zk_rng)?;
+            AHPForR1CS::prover_index_private_first_round(prover_init_state, zk_rng)?;
 
         let first_round_comm_time = start_timer!(|| "Committing to first round polys");
         let (first_comms, first_comm_rands) = PC::commit(
@@ -674,7 +674,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
         let index_info = index_vk.index_info;
         let degree_bounds = vec![None; index_vk.index_comms.len()]
             .into_iter()
-            .chain(AHPForR1CS::prover_first_round_degree_bounds(&index_info))
+            .chain(AHPForR1CS::prover_index_private_first_round_degree_bounds(&index_info))
             .chain(AHPForR1CS::prover_second_round_degree_bounds(&index_info))
             .chain(AHPForR1CS::index_private_prover_third_round_degree_bounds(
                 &index_info,

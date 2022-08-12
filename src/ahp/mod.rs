@@ -46,9 +46,9 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
     /// The labels for the polynomials output by the AHP index private prover.
     #[rustfmt::skip]
-    pub const INDEX_PRIVATE_PROVER_POLYNOMIALS: [&'static str; 10] = [
+    pub const INDEX_PRIVATE_PROVER_POLYNOMIALS: [&'static str; 11] = [
         // First sumcheck
-        "w", "z_a", "z_b", "mask_poly", "t", "g_1", "h_1",
+        "w", "z_a", "z_b", "mask_poly", "inner_mask_poly", "t", "g_1", "h_1",
         // Second sumcheck
         "f", "g_2", "h_2",
     ];
