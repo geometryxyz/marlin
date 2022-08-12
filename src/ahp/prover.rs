@@ -747,7 +747,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         let num_non_zero = info.num_non_zero;
         let k_size = GeneralEvaluationDomain::<F>::compute_size_of_domain(num_non_zero).unwrap();
 
-        vec![None, Some(k_size - 2), Some(6*k_size - 7)].into_iter()
+        vec![None, Some(k_size - 2), Some(6 * k_size - 7)].into_iter()
     }
 
     /// third round that is used for index private version

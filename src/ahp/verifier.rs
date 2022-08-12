@@ -192,7 +192,6 @@ impl<F: PrimeField> AHPForR1CS<F> {
         state: VerifierState<F>,
         _: &'a mut R,
     ) -> (QuerySet<F>, VerifierState<F>) {
-
         let beta = state.second_round_msg.unwrap().beta;
 
         let gamma = state.gamma.unwrap();
@@ -209,7 +208,6 @@ impl<F: PrimeField> AHPForR1CS<F> {
         // query_set.insert(("f".into(), ("gamma".into(), gamma)));
         query_set.insert(("g_2".into(), ("gamma".into(), gamma)));
         query_set.insert(("f_sumcheck".into(), ("gamma".into(), gamma)));
-
 
         // query_set.insert(("inner_sumcheck".into(), ("gamma".into(), gamma)));
         (query_set, state)

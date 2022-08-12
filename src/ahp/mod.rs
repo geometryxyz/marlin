@@ -58,7 +58,6 @@ impl<F: PrimeField> AHPForR1CS<F> {
     /// THe linear combinations that are statically known to evaluate to zero in index private version.
     pub const INDEX_PRIVATE_LC_WITH_ZERO_EVAL: [&'static str; 2] = ["outer_sumcheck", "f_sumcheck"];
 
-
     pub(crate) fn polynomial_labels() -> impl Iterator<Item = String> {
         Self::INDEXER_POLYNOMIALS
             .iter()
@@ -304,13 +303,13 @@ impl<F: PrimeField> AHPForR1CS<F> {
                 "outer_sumcheck",
                 vec![
                     (F::one(), "mask_poly".into()),
-    
+
                     (r_alpha_at_beta * (eta_a + eta_c * z_b_at_beta), "z_a".into()),
                     (r_alpha_at_beta * eta_b * z_b_at_beta, LCTerm::One),
-    
+
                     (-t_at_beta * v_X_at_beta, "w".into()),
                     (-t_at_beta * x_at_beta, LCTerm::One),
-    
+
                     (-v_H_at_beta, "h_1".into()),
                     (-beta * g_1_at_beta, LCTerm::One),
                 ],

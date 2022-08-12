@@ -387,7 +387,11 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
         // --------------------------------------------------------------------
         // Third round
         let (prover_third_msg, prover_third_oracles) =
-            AHPForR1CS::prover_index_private_third_round(&verifier_second_msg, prover_state, zk_rng)?;
+            AHPForR1CS::prover_index_private_third_round(
+                &verifier_second_msg,
+                prover_state,
+                zk_rng,
+            )?;
 
         let third_round_comm_time = start_timer!(|| "Committing to third round polys");
         let (third_comms, third_comm_rands) = PC::commit(
@@ -672,7 +676,9 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
             .into_iter()
             .chain(AHPForR1CS::prover_first_round_degree_bounds(&index_info))
             .chain(AHPForR1CS::prover_second_round_degree_bounds(&index_info))
-            .chain(AHPForR1CS::index_private_prover_third_round_degree_bounds(&index_info))
+            .chain(AHPForR1CS::index_private_prover_third_round_degree_bounds(
+                &index_info,
+            ))
             .collect::<Vec<_>>();
 
         // Gather commitments in one vector.
