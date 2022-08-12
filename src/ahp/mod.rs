@@ -330,8 +330,9 @@ impl<F: PrimeField> AHPForR1CS<F> {
         let f_sumcheck = LinearCombination::<F>::new(
             "f_sumcheck",
             vec![
+                (F::one(), "inner_mask_poly".into()),
                 (F::one(), "f".into()),
-                // (-gamma, "g_2".into()),
+
                 (-gamma * g_2_at_gamma, LCTerm::One),
                 (-(t_at_beta / k_size), LCTerm::One),
             ],
