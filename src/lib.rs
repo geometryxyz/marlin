@@ -374,7 +374,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
         let prover_init_state = AHPForR1CS::prover_init(&index_pk.index, c)?;
         let public_input = prover_init_state.public_input();
         let mut fs_rng = FS::initialize(
-            &to_bytes![&Self::PROTOCOL_NAME, &index_pk.index_private_vk, &public_input].unwrap(), // TODO: &index_pk.index_private_vk -> solve tobytes issue
+            &to_bytes![&Self::PROTOCOL_NAME, &index_pk.index_private_vk, &public_input].unwrap(),
         );
 
         // --------------------------------------------------------------------
@@ -682,7 +682,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
         };
 
         let mut fs_rng =
-            FS::initialize(&to_bytes![&Self::PROTOCOL_NAME, &index_vk, &public_input].unwrap()); //TODO: solve tobytes for &index_vk
+            FS::initialize(&to_bytes![&Self::PROTOCOL_NAME, &index_vk, &public_input].unwrap());
 
         // --------------------------------------------------------------------
         // First round
