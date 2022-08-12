@@ -172,6 +172,15 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>> Clone
     }
 }
 
+impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>> ark_ff::ToBytes
+    for IndexPrivateVerifierKey<F, PC>
+{
+    fn write<W: Write>(&self, mut w: W) -> ark_std::io::Result<()> {
+        self.index_info.write(&mut w)?;
+        self.polys.write(&mut w)
+    }
+}
+
 /* ************************************************************************* */
 /* ************************************************************************* */
 /* ************************************************************************* */
