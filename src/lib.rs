@@ -408,10 +408,12 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
         // --------------------------------------------------------------------
 
         // Gather prover polynomials in one vector.
-        let polynomials: Vec<_> = index_pk
-            .index
-            .iter()
-            .chain(prover_first_oracles.iter())
+        let polynomials: Vec<_> = 
+        // index_pk
+        //     .index
+        //     .iter()
+            // .chain(prover_first_oracles.iter())
+            prover_first_oracles.iter()
             .chain(prover_second_oracles.iter())
             .chain(prover_third_oracles.iter())
             .collect();
@@ -424,23 +426,27 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
                 third_comms.iter().map(|p| p.commitment().clone()).collect(),
             ];
 
-        let labeled_comms: Vec<_> = index_pk
-            .index_vk
-            .iter()
-            .cloned()
-            .zip(&AHPForR1CS::<F>::INDEXER_POLYNOMIALS)
-            .map(|(c, l)| LabeledCommitment::new(l.to_string(), c, None))
-            .chain(first_comms.iter().cloned())
+        let labeled_comms: Vec<_> = 
+            // index_pk
+            // .index_vk
+            // .iter()
+            // .cloned()
+            // .zip(&AHPForR1CS::<F>::INDEXER_POLYNOMIALS)
+            // .map(|(c, l)| LabeledCommitment::new(l.to_string(), c, None))
+            // .chain(first_comms.iter().cloned())
+            first_comms.iter().cloned()
             .chain(second_comms.iter().cloned())
             .chain(third_comms.iter().cloned())
             .collect();
 
         // Gather commitment randomness together.
-        let comm_rands: Vec<PC::Randomness> = index_pk
-            .index_comm_rands
-            .clone()
-            .into_iter()
-            .chain(first_comm_rands)
+        let comm_rands: Vec<PC::Randomness> = 
+            // index_pk
+            // .index_comm_rands
+            // .clone()
+            // .into_iter()
+            // .chain(first_comm_rands)
+            first_comm_rands.into_iter()
             .chain(second_comm_rands)
             .chain(third_comm_rands)
             .collect();
@@ -468,6 +474,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
         }
 
         evaluations.sort_by(|a, b| a.0.cmp(&b.0));
+        println!("{:?}", evaluations);
         let evaluations = evaluations.into_iter().map(|x| x.1).collect::<Vec<F>>();
         end_timer!(eval_time);
 
@@ -672,9 +679,11 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
         // degree bounds because we know the committed index polynomial has the
         // correct degree.
         let index_info = index_vk.index_info;
-        let degree_bounds = vec![None; index_vk.index_comms.len()]
-            .into_iter()
-            .chain(AHPForR1CS::prover_index_private_first_round_degree_bounds(&index_info))
+        let degree_bounds = 
+            // vec![None; index_vk.index_comms.len()]
+            // .into_iter()
+            // .chain(AHPForR1CS::prover_index_private_first_round_degree_bounds(&index_info))
+            AHPForR1CS::prover_index_private_first_round_degree_bounds(&index_info)
             .chain(AHPForR1CS::prover_second_round_degree_bounds(&index_info))
             .chain(AHPForR1CS::index_private_prover_third_round_degree_bounds(
                 &index_info,
@@ -682,9 +691,11 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
             .collect::<Vec<_>>();
 
         // Gather commitments in one vector.
-        let commitments: Vec<_> = index_vk
-            .iter()
-            .chain(first_comms)
+        let commitments: Vec<_> = 
+        // index_vk
+        //     .iter()
+        //     .chain(first_comms)
+            first_comms.into_iter()
             .chain(second_comms)
             .chain(third_comms)
             .cloned()

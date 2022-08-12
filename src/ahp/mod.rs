@@ -65,10 +65,9 @@ impl<F: PrimeField> AHPForR1CS<F> {
             .map(|s| s.to_string())
     }
 
+
     pub(crate) fn index_private_polynomial_labels() -> impl Iterator<Item = String> {
-        Self::INDEXER_POLYNOMIALS
-            .iter()
-            .chain(&Self::INDEX_PRIVATE_PROVER_POLYNOMIALS)
+            Self::INDEX_PRIVATE_PROVER_POLYNOMIALS.iter()
             .map(|s| s.to_string())
     }
 
@@ -326,7 +325,6 @@ impl<F: PrimeField> AHPForR1CS<F> {
         let g_2 = LinearCombination::new("g_2", vec![(F::one(), "g_2")]);
         let g_2_at_gamma = evals.get_lc_eval(&g_2, gamma)?;
 
-        //TODO: add masking polynomial when we clarify about zk sumcheck with Patrysh
         let f_sumcheck = LinearCombination::<F>::new(
             "f_sumcheck",
             vec![
