@@ -26,6 +26,8 @@ ark-std = { version = "^0.3.0", default-features = false }
 ark-poly = { version = "^0.3.0", default-features = false }
 ark-relations = { version = "^0.3.0", default-features = false }
 ark-poly-commit = { version = "^0.3.0", default-features = false }
+ark-ec = { version = "^0.3.0", default-features = false }
+
 
 rayon = { version = "1", optional = true }
 digest = { version = "0.9" }

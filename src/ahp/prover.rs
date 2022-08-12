@@ -7,6 +7,8 @@ use crate::ahp::*;
 use crate::ahp::constraint_systems::{
     make_matrices_square_for_prover, pad_input_for_indexer_and_prover, unformat_public_input,
 };
+use crate::rng::FiatShamirRng;
+use crate::zero_over_k::ZeroOverK;
 use crate::{ToString, Vec};
 use ark_ff::{Field, PrimeField, Zero};
 use ark_poly::{
@@ -22,6 +24,9 @@ use ark_std::{
     cfg_into_iter, cfg_iter, cfg_iter_mut,
     io::{Read, Write},
 };
+
+use crate::virtual_oracle::AddVO;
+use crate::zero_over_k::commitment::HomomorphicPolynomialCommitment;
 
 /// State for the AHP prover.
 pub struct ProverState<'a, F: PrimeField> {
@@ -897,10 +902,10 @@ impl<F: PrimeField> AHPForR1CS<F> {
     }
 
     /// third round that is used for index private version
-    pub fn prover_index_private_third_round<'a, R: RngCore>(
+    pub fn prover_index_private_third_round<'a, R: RngCore>( // PC: HomomorphicPolynomialCommitment<F>, FS: FiatShamirRng>
         ver_message: &VerifierSecondMsg<F>,
         prover_state: ProverState<'a, F>,
-        _r: &mut R,
+        r: &mut R,
     ) -> Result<(ProverMsg<F>, ProverIndexPrivateThirdOracles<F>), Error> {
         let ProverState {
             index,
@@ -1032,6 +1037,22 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
         assert!(h_2.degree() < 6 * domain_k.size() - 6);
         assert!(g_2.degree() <= domain_k.size() - 2);
+
+        let a_vo_test = DensePolynomial::<F>::rand(domain_k.size(), r);
+        let b_vo_test = DensePolynomial::<F>::rand(domain_k.size(), r);
+
+        let zero_over_k_vo = AddVO {};
+
+        // let zero_over_k_proof = ZeroOverK::<F, PC, FS>::prove(
+        //     &concrete_oracles,
+        //     &commitments,
+        //     &rands,
+        //     &zero_over_k_vo,
+        //     &alphas,
+        //     &domain_k,
+        //     &ck,
+        //     r,
+        // );
 
         let oracles = ProverIndexPrivateThirdOracles {
             f: LabeledPolynomial::new(
