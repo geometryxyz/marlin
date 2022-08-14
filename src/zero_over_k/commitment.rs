@@ -3,7 +3,7 @@ use ark_ec::{msm::VariableBaseMSM, PairingEngine};
 use ark_ff::PrimeField;
 use ark_poly::univariate::DensePolynomial;
 use ark_poly_commit::PCRandomness;
-use ark_poly_commit::{sonic_pc::SonicKZG10, LabeledCommitment, PolynomialCommitment};
+use ark_poly_commit::{sonic_pc::SonicKZG10, LabeledCommitment, PolynomialCommitment, marlin_pc::MarlinKZG10};
 
 /// A homomorphic polynomial commitment
 pub trait HomomorphicPolynomialCommitment<F>: PolynomialCommitment<F, DensePolynomial<F>>
@@ -22,7 +22,7 @@ where
 }
 
 /// The Default KZG-style commitment scheme
-pub type KZG10<E> = SonicKZG10<E, DensePolynomial<<E as PairingEngine>::Fr>>;
+pub type KZG10<E> = MarlinKZG10<E, DensePolynomial<<E as PairingEngine>::Fr>>;
 
 /// A single KZG10 commitment
 pub type KZG10Commitment<E> = <KZG10<E> as PolynomialCommitment<
@@ -50,12 +50,17 @@ where
 
         let points_repr = commitments
             .iter()
-            .map(|c| c.commitment().0)
+            .map(|c| c.commitment().comm.0)
             .collect::<Vec<_>>();
 
-        ark_poly_commit::kzg10::Commitment::<E>(
+        let comm = ark_poly_commit::kzg10::Commitment::<E>(
             VariableBaseMSM::multi_scalar_mul(&points_repr, &scalars_repr).into(),
-        )
+        );
+
+        KZG10Commitment { 
+            comm, 
+            shifted_comm: None
+        }
     }
 
     fn aggregate_randomness(rands: &[KZGRandomness<E>]) -> KZGRandomness<E> {

@@ -22,7 +22,7 @@ mod tests;
 
 mod util;
 pub mod commitment;
-mod error;
+pub mod error;
 
 
 pub struct ZeroOverK<F: PrimeField, PC: HomomorphicPolynomialCommitment<F>, FS: FiatShamirRng> {
@@ -220,7 +220,7 @@ impl<F: PrimeField, PC: HomomorphicPolynomialCommitment<F>, FS: FiatShamirRng> Z
     }
 
     pub fn verify<VO: VirtualOracle<F>, R: RngCore>(
-        proof: Proof<F, PC>,
+        proof: &Proof<F, PC>,
         concrete_oracle_commitments: &[LabeledCommitment<PC::Commitment>],
         virtual_oracle: &VO,
         domain: &GeneralEvaluationDomain<F>,
@@ -309,7 +309,7 @@ impl<F: PrimeField, PC: HomomorphicPolynomialCommitment<F>, FS: FiatShamirRng> Z
                 .as_slice(),
         );
 
-        let q1_commit = LabeledCommitment::new(String::from("q_1"), proof.q1_commit, None);
+        let q1_commit = LabeledCommitment::new(String::from("q_1"), proof.q1_commit.clone(), None);
         let q2_commit = LabeledCommitment::new(String::from("q_2"), q2_commit, None);
 
         let fs_bytes =

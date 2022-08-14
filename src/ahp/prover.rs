@@ -60,7 +60,7 @@ pub struct ProverState<'a, F: PrimeField> {
     domain_h: GeneralEvaluationDomain<F>,
 
     /// domain K, sized for matrix nonzero elements
-    domain_k: GeneralEvaluationDomain<F>,
+    pub domain_k: GeneralEvaluationDomain<F>, // TODO: remove pub, it's just for easier testing
 }
 
 impl<'a, F: PrimeField> ProverState<'a, F> {

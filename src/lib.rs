@@ -19,11 +19,17 @@
 extern crate ark_std;
 
 use ark_ff::{to_bytes, PrimeField, UniformRand};
+use ark_poly::UVPolynomial;
 use ark_poly::{univariate::DensePolynomial, EvaluationDomain, GeneralEvaluationDomain};
-use ark_poly_commit::Evaluations;
+use ark_poly_commit::{Evaluations, LabeledPolynomial};
 use ark_poly_commit::{LabeledCommitment, PCUniversalParams, PolynomialCommitment};
 use ark_relations::r1cs::ConstraintSynthesizer;
 use ark_std::rand::RngCore;
+use crate::virtual_oracle::rational_sumcheck_vo::RationalSumcheckVO;
+use crate::virtual_oracle::{AddVO, rational_sumcheck_vo};
+use crate::zero_over_k::ZeroOverK;
+use crate::zero_over_k::commitment::HomomorphicPolynomialCommitment;
+
 
 use ark_std::{
     collections::BTreeMap,
@@ -67,13 +73,13 @@ pub mod zero_over_k;
 mod test;
 
 /// The compiled argument system.
-pub struct Marlin<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatShamirRng>(
+pub struct Marlin<F: PrimeField, PC: HomomorphicPolynomialCommitment<F>, FS: FiatShamirRng>(
     #[doc(hidden)] PhantomData<F>,
     #[doc(hidden)] PhantomData<PC>,
     #[doc(hidden)] PhantomData<FS>,
 );
 
-impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatShamirRng>
+impl<F: PrimeField, PC: HomomorphicPolynomialCommitment<F>, FS: FiatShamirRng>
     Marlin<F, PC, FS>
 {
     /// The personalization string for this protocol. Used to personalize the
@@ -373,7 +379,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
         index_pk: &IndexPrivateProverKey<F, PC>,
         c: C,
         zk_rng: &mut R,
-    ) -> Result<Proof<F, PC>, Error<PC::Error>> {
+    ) -> Result<IndexPrivateProof<F, PC>, Error<PC::Error>> {
         let prover_time = start_timer!(|| "Marlin::Prover");
         // Add check that c is in the correct mode.
 
@@ -409,6 +415,8 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
 
         let (prover_second_msg, prover_second_oracles, prover_state) =
             AHPForR1CS::prover_second_round(&verifier_first_msg, prover_state, zk_rng);
+
+        let domain_k = prover_state.domain_k.clone();
 
         let second_round_comm_time = start_timer!(|| "Committing to second round polys");
         let (second_comms, second_comm_rands) = PC::commit(
@@ -522,6 +530,76 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
         fs_rng.absorb(&evaluations);
         let opening_challenge: F = u128::rand(&mut fs_rng).into();
 
+        let a = DensePolynomial::<F>::rand(domain_k.size(), zk_rng);
+        let a = LabeledPolynomial::new(String::from("a"), a.clone(), None, None);
+        let b = DensePolynomial::<F>::rand(domain_k.size(), zk_rng);
+        let b = LabeledPolynomial::new(String::from("b"), b.clone(), None, None);
+
+        let test_oracles = [a, b];
+
+        let (commits, rands) = PC::commit(
+            &index_pk.committer_key,
+            test_oracles.iter(),
+            None,
+        )
+        .map_err(Error::from_pc_err)?;
+
+        let zero_over_k_vo = AddVO {};
+
+        let zero_over_k_proof = ZeroOverK::<F, PC, FS>::prove(
+            &test_oracles,
+            &commits,
+            &rands,
+            &zero_over_k_vo,
+            &[F::one(), F::one()].to_vec(),
+            &domain_k,
+            &index_pk.committer_key,
+            zk_rng,
+        );
+
+        let concrete_oracles = [
+            index_pk.index.a_arith.row.clone(),
+            index_pk.index.a_arith.col.clone(),
+            index_pk.index.a_arith.val.clone(),
+            index_pk.index.b_arith.row.clone(),
+            index_pk.index.b_arith.col.clone(),
+            index_pk.index.b_arith.val.clone(),
+            index_pk.index.c_arith.row.clone(),
+            index_pk.index.c_arith.col.clone(),
+            index_pk.index.c_arith.val.clone(),
+            prover_third_oracles.f.clone() // f
+        ];
+
+        let rational_sumcheck_vo = RationalSumcheckVO {
+            eta_a: verifier_first_msg.eta_a,
+            eta_b: verifier_first_msg.eta_b,
+            eta_c: verifier_first_msg.eta_c,
+
+            alpha: verifier_first_msg.alpha, 
+            beta: verifier_second_msg.beta,
+
+            vh_alpha: domain_k.evaluate_vanishing_polynomial(verifier_first_msg.alpha),
+            vh_beta: domain_k.evaluate_vanishing_polynomial(verifier_second_msg.beta)
+        };
+
+        let labels = vec!["a_row", "a_col", "a_val", "b_row", "b_col", "b_val", "c_row", "c_col", "c_val", "f"];
+        let rational_sumcheck_commitments = index_pk.index_private_vk.polys.iter().zip(labels.iter())
+            .map(|(commitment, &label)| 
+                LabeledCommitment::new(label.into(), commitment.clone(), None)
+        ).collect::<Vec<_>>();
+
+
+        let rational_sumcheck_proof = ZeroOverK::<F, PC, FS>::prove(
+            &concrete_oracles,
+            &rational_sumcheck_commitments,
+            &rands,
+            &rational_sumcheck_vo,
+            &vec![F::one(); concrete_oracles.len()],
+            &domain_k,
+            &index_pk.committer_key,
+            zk_rng,
+        )?;
+
         let pc_proof = PC::open_combinations(
             &index_pk.committer_key,
             &lc_s,
@@ -537,8 +615,8 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
         // Gather prover messages together.
         let prover_messages = vec![prover_first_msg, prover_second_msg, prover_third_msg];
 
-        let proof = Proof::new(commitments, evaluations, prover_messages, pc_proof);
-        proof.print_size_info();
+        let proof = IndexPrivateProof::new(commitments, evaluations, prover_messages, pc_proof, rational_sumcheck_proof);
+        // proof.print_size_info();
         end_timer!(prover_time);
         Ok(proof)
     }
@@ -670,7 +748,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
     pub fn verify_index_private<R: RngCore>(
         index_vk: &IndexPrivateVerifierKey<F, PC>,
         public_input: &[F],
-        proof: &Proof<F, PC>,
+        proof: &IndexPrivateProof<F, PC>,
         rng: &mut R,
     ) -> Result<bool, Error<PC::Error>> {
         let verifier_time = start_timer!(|| "Marlin::Verify");
@@ -696,7 +774,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
         let first_comms = &proof.commitments[0];
         fs_rng.absorb(&to_bytes![first_comms, proof.prover_messages[0]].unwrap());
 
-        let (_, verifier_state) =
+        let (verifier_first_msg, verifier_state) =
             AHPForR1CS::verifier_first_round(index_vk.index_info, &mut fs_rng)?;
         // --------------------------------------------------------------------
 
@@ -705,7 +783,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
         let second_comms = &proof.commitments[1];
         fs_rng.absorb(&to_bytes![second_comms, proof.prover_messages[1]].unwrap());
 
-        let (_, verifier_state) = AHPForR1CS::verifier_second_round(verifier_state, &mut fs_rng);
+        let (verifier_second_msg, verifier_state) = AHPForR1CS::verifier_second_round(verifier_state, &mut fs_rng);
         // --------------------------------------------------------------------
 
         // --------------------------------------------------------------------
@@ -783,6 +861,37 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
         )
         .map_err(Error::from_pc_err)?;
 
+        let domain_k = verifier_state.domain_k.clone();
+        let rational_sumcheck_vo = RationalSumcheckVO {
+            eta_a: verifier_first_msg.eta_a,
+            eta_b: verifier_first_msg.eta_b,
+            eta_c: verifier_first_msg.eta_c,
+
+            alpha: verifier_first_msg.alpha, 
+            beta: verifier_second_msg.beta,
+
+            vh_alpha: domain_k.evaluate_vanishing_polynomial(verifier_first_msg.alpha),
+            vh_beta: domain_k.evaluate_vanishing_polynomial(verifier_second_msg.beta)
+        };
+
+        let labels = vec!["a_row", "a_col", "a_val", "b_row", "b_col", "b_val", "c_row", "c_col", "c_val", "f"];
+        let rational_sumcheck_commitments = index_vk.polys.iter().zip(labels.iter())
+            .map(|(commitment, &label)| 
+                LabeledCommitment::new(label.into(), commitment.clone(), None)
+        ).collect::<Vec<_>>();
+
+        let is_valid = ZeroOverK::<F, PC, FS>::verify(
+            &proof.rational_sumcheck_zero_over_k_proof,
+            &rational_sumcheck_commitments,
+            &rational_sumcheck_vo,
+            &domain_k,
+            &vec![F::one(); 10],
+            &index_vk.verifier_key,
+            rng
+        );
+
+        println!("{:?}", is_valid);
+
         if !evaluations_are_correct {
             eprintln!("PC::Check failed");
         }
@@ -790,6 +899,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
             " PC::Check for AHP Verifier linear equations: {}",
             evaluations_are_correct
         ));
+
         Ok(evaluations_are_correct)
     }
 }

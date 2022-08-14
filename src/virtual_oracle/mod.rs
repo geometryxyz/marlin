@@ -5,8 +5,10 @@ use ark_poly::{
 use ark_poly_commit::LabeledPolynomial;
 
 pub mod add_vo;
+pub mod rational_sumcheck_vo;
 
 pub use add_vo::AddVO;
+pub use rational_sumcheck_vo::RationalSumcheckVO;
 // pub mod eq_vo;
 // pub mod geometric_sequence_vo;
 // pub mod inverse_check_oracle;

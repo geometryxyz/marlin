@@ -5,6 +5,7 @@ use crate::zero_over_k::util::*;
 use crate::virtual_oracle::VirtualOracle;
 use crate::zero_over_k::piop::{verifier::VerifierFirstMsg, LabeledPolynomial};
 use ark_ff::{PrimeField, Zero};
+use ark_poly::univariate::DenseOrSparsePolynomial;
 use ark_poly::{
     univariate::DensePolynomial, EvaluationDomain, GeneralEvaluationDomain, UVPolynomial,
 };
@@ -146,14 +147,14 @@ impl<F: PrimeField, VO: VirtualOracle<F>, FS: FiatShamirRng> PIOPforZeroOverK<F,
         // HOW TO COMPUTE Q IN COEFFS FORM
         // let f_prime = state
         //     .virtual_oracle
-        //     .instantiate_in_coeffs_form(h_primes.as_slice(), &alphas)?;
+        //     .instantiate_in_coeffs_form(h_primes.as_slice(), &alphas).map_err(Error::from_vo_error)?;
 
         // let (quotient, _r) = DenseOrSparsePolynomial::from(&f_prime)
         //     .divide_with_q_and_r(&DenseOrSparsePolynomial::from(
         //         &domain.vanishing_polynomial(),
         //     ))
         //     .unwrap();
-        //
+        
         // sanity check
         // assert_eq!(_r, DensePolynomial::<F>::zero());
         ///////////////////////////////////////////////////////////
@@ -215,7 +216,7 @@ fn compute_maskings<R: Rng, F: PrimeField, VO: VirtualOracle<F>>(
     rng: &mut R,
 ) -> (Vec<LabeledPolynomial<F>>, Vec<LabeledPolynomial<F>>) {
     let num_of_concrete_oracles = virtual_oracle.num_of_oracles();
-    //r is defined as polynomial degree < 2
+    // r is defined as polynomial degree < 2
     let degree = 1;
 
     let mut random_polynomials = Vec::with_capacity(num_of_concrete_oracles);
