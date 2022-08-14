@@ -843,11 +843,10 @@ impl<F: PrimeField> AHPForR1CS<F> {
         end_timer!(f_poly_time);
 
         let h_2_poly_time = start_timer!(|| "Computing sumcheck h poly");
-        let (h_2, reminder) = (&a_poly - &(&b_poly * &f))
+        let h_2 = (&a_poly - &(&b_poly * &f))
             .divide_by_vanishing_poly(domain_k)
-            .unwrap();
+            .unwrap().0;
 
-        assert_eq!(reminder, DensePolynomial::zero());
         end_timer!(h_2_poly_time);
         drop(a_poly);
         drop(b_poly);
@@ -983,10 +982,12 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
         let f_poly = EvaluationsOnDomain::from_vec_and_domain(f_evals, domain_k).interpolate();
 
-        let h_2 = (&a_poly - &(&b_poly * &f_poly))
+        let (h_2, reminder) = (&a_poly - &(&b_poly * &f_poly))
             .divide_by_vanishing_poly(domain_k)
-            .unwrap()
-            .0;
+            .unwrap();
+
+        // sanity check
+        assert_eq!(reminder, DensePolynomial::zero());
 
 
         let zk_f_poly = f_poly.clone() + inner_mask_poly.polynomial().clone();
