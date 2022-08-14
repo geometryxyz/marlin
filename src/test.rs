@@ -135,7 +135,7 @@ mod marlin {
         let universal_srs = MarlinInst::universal_setup(100, 25, 300, rng).unwrap();
 
         // TODO: return to 100
-        for _ in 0..50 {
+        for _ in 0..1 {
             let a = Fr::rand(rng);
             let b = Fr::rand(rng);
             let mut c = a;
@@ -168,7 +168,7 @@ mod marlin {
 
         let universal_srs = MarlinInst::universal_setup(100, 25, 300, rng).unwrap();
 
-        for _ in 0..50 {
+        for _ in 0..1 {
             let a = Fr::rand(rng);
             let b = Fr::rand(rng);
             let mut c = a;

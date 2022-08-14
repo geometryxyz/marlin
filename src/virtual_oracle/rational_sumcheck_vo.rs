@@ -1,6 +1,6 @@
 use crate::{virtual_oracle::Error, virtual_oracle::VirtualOracle};
 use ark_ff::PrimeField;
-use ark_poly::{univariate::DensePolynomial, EvaluationDomain, GeneralEvaluationDomain};
+use ark_poly::{univariate::DensePolynomial, EvaluationDomain, GeneralEvaluationDomain, UVPolynomial};
 use ark_poly_commit::LabeledPolynomial;
 
 pub struct RationalSumcheckVO<F: PrimeField> {
@@ -45,11 +45,53 @@ impl<F: PrimeField> VirtualOracle<F> for RationalSumcheckVO<F> {
         concrete_oracles: &[LabeledPolynomial<F, DensePolynomial<F>>],
         _alphas: &[F],
     ) -> Result<DensePolynomial<F>, Error> {
-        if concrete_oracles.len() != 9 {
+        if concrete_oracles.len() != 10 {
             return Err(Error::InstantiationError);
         }
 
-        Ok(concrete_oracles[0].polynomial() + concrete_oracles[1].polynomial())
+        let v_H_alpha_v_H_beta = self.vh_alpha * self.vh_beta;
+        let eta_a_times_v_H_alpha_v_H_beta = self.eta_a * v_H_alpha_v_H_beta;
+        let eta_b_times_v_H_alpha_v_H_beta = self.eta_b * v_H_alpha_v_H_beta;
+        let eta_c_times_v_H_alpha_v_H_beta = self.eta_c * v_H_alpha_v_H_beta;
+
+        let a_row = concrete_oracles[0].polynomial();
+        let a_col = concrete_oracles[1].polynomial();
+        let a_val = concrete_oracles[2].polynomial();
+        let b_row = concrete_oracles[3].polynomial();
+        let b_col = concrete_oracles[4].polynomial();
+        let b_val = concrete_oracles[5].polynomial();
+        let c_row = concrete_oracles[6].polynomial();
+        let c_col = concrete_oracles[7].polynomial();
+        let c_val = concrete_oracles[8].polynomial();
+        let f = concrete_oracles[9].polynomial();
+
+        let a_part_denom = &(&(DensePolynomial::from_coefficients_slice(&[self.beta])) - a_row)
+            * &(&(DensePolynomial::from_coefficients_slice(&[self.alpha])) - a_col);
+
+        let b_part_denom = &(&(DensePolynomial::from_coefficients_slice(&[self.beta])) - b_row)
+            * &(&(DensePolynomial::from_coefficients_slice(&[self.alpha])) - b_col);
+
+        let c_part_denom = &(&(DensePolynomial::from_coefficients_slice(&[self.beta])) - c_row)
+            * &(&(DensePolynomial::from_coefficients_slice(&[self.alpha])) - c_col);
+
+        let b_poly = &(&a_part_denom * &b_part_denom) * &c_part_denom;
+
+        let a_part_nom =
+            &(DensePolynomial::from_coefficients_slice(&[eta_a_times_v_H_alpha_v_H_beta])) * a_val;
+        let b_part_nom =
+            &(DensePolynomial::from_coefficients_slice(&[eta_b_times_v_H_alpha_v_H_beta])) * b_val;
+        let c_part_nom =
+            &(DensePolynomial::from_coefficients_slice(&[eta_c_times_v_H_alpha_v_H_beta])) * c_val;
+
+        let a_poly = {
+            let summand_0 = &a_part_nom * &(&b_part_denom * &c_part_denom);
+            let summand_1 = &b_part_nom * &(&a_part_denom * &c_part_denom);
+            let summand_2 = &c_part_nom * &(&a_part_denom * &b_part_denom);
+
+            summand_0 + summand_1 + summand_2
+        };
+
+        Ok(&a_poly - &(&b_poly - f))
     }
 
     fn instantiate_in_evals_form(
@@ -144,7 +186,7 @@ impl<F: PrimeField> VirtualOracle<F> for RationalSumcheckVO<F> {
     /// this map encodes at which concrete oracle should h_i point
     fn mapping_vector(&self) -> Vec<usize> {
         // h0 = f0, h1 = f1
-        Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8])
+        Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
     }
 
     fn degree_bound(&self, domain_size: usize) -> usize {

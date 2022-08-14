@@ -102,6 +102,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         // deg(row_col) = 2k - 2, and we have 2k - 2  + 2k - 2 + 2k - 2 for each matrix
         // then + k - 1 for f and - k for vanishing
 
+        //TODO make different when not index private
         Ok(*[
             6 * domain_k_size - 6,
             2 * domain_h_size + zk_bound - 2,
@@ -109,6 +110,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
             domain_h_size,
             domain_h_size,
             domain_k_size - 1,
+            8*domain_k_size // to commit to quotient of rational zeroover k sumcheck
         ]
         .iter()
         .max()

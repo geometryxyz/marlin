@@ -843,10 +843,11 @@ impl<F: PrimeField> AHPForR1CS<F> {
         end_timer!(f_poly_time);
 
         let h_2_poly_time = start_timer!(|| "Computing sumcheck h poly");
-        let h_2 = (&a_poly - &(&b_poly * &f))
+        let (h_2, reminder) = (&a_poly - &(&b_poly * &f))
             .divide_by_vanishing_poly(domain_k)
-            .unwrap()
-            .0;
+            .unwrap();
+
+        assert_eq!(reminder, DensePolynomial::zero());
         end_timer!(h_2_poly_time);
         drop(a_poly);
         drop(b_poly);

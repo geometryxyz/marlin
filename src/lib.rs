@@ -18,6 +18,8 @@
 #[macro_use]
 extern crate ark_std;
 
+use core::iter;
+
 use ark_ff::{to_bytes, PrimeField, UniformRand};
 use ark_poly::UVPolynomial;
 use ark_poly::{univariate::DensePolynomial, EvaluationDomain, GeneralEvaluationDomain};
@@ -582,11 +584,13 @@ impl<F: PrimeField, PC: HomomorphicPolynomialCommitment<F>, FS: FiatShamirRng>
             vh_beta: domain_k.evaluate_vanishing_polynomial(verifier_second_msg.beta)
         };
 
-        let labels = vec!["a_row", "a_col", "a_val", "b_row", "b_col", "b_val", "c_row", "c_col", "c_val", "f"];
-        let rational_sumcheck_commitments = index_pk.index_private_vk.polys.iter().zip(labels.iter())
+        let labels = vec!["a_row", "a_col", "a_val", "b_row", "b_col", "b_val", "c_row", "c_col", "c_val"];
+        let mut rational_sumcheck_commitments = index_pk.index_private_vk.polys.iter().zip(labels.iter())
             .map(|(commitment, &label)| 
                 LabeledCommitment::new(label.into(), commitment.clone(), None)
         ).collect::<Vec<_>>();
+
+        rational_sumcheck_commitments.push(LabeledCommitment::new("f".into(), third_comms[0].commitment().clone(), None));
 
 
         let rational_sumcheck_proof = ZeroOverK::<F, PC, FS>::prove(
@@ -874,23 +878,26 @@ impl<F: PrimeField, PC: HomomorphicPolynomialCommitment<F>, FS: FiatShamirRng>
             vh_beta: domain_k.evaluate_vanishing_polynomial(verifier_second_msg.beta)
         };
 
-        let labels = vec!["a_row", "a_col", "a_val", "b_row", "b_col", "b_val", "c_row", "c_col", "c_val", "f"];
-        let rational_sumcheck_commitments = index_vk.polys.iter().zip(labels.iter())
+        let labels = vec!["a_row", "a_col", "a_val", "b_row", "b_col", "b_val", "c_row", "c_col", "c_val"];
+        let mut rational_sumcheck_commitments = index_vk.polys.iter()
+            .zip(labels.iter())
             .map(|(commitment, &label)| 
                 LabeledCommitment::new(label.into(), commitment.clone(), None)
         ).collect::<Vec<_>>();
 
-        let is_valid = ZeroOverK::<F, PC, FS>::verify(
-            &proof.rational_sumcheck_zero_over_k_proof,
-            &rational_sumcheck_commitments,
-            &rational_sumcheck_vo,
-            &domain_k,
-            &vec![F::one(); 10],
-            &index_vk.verifier_key,
-            rng
-        );
+        rational_sumcheck_commitments.push(LabeledCommitment::new("f".into(), third_comms[0].clone(), None)); // TODO f should also be bounded with |K| -1
 
-        println!("{:?}", is_valid);
+        // let is_valid = ZeroOverK::<F, PC, FS>::verify(
+        //     &proof.rational_sumcheck_zero_over_k_proof,
+        //     &rational_sumcheck_commitments,
+        //     &rational_sumcheck_vo,
+        //     &domain_k,
+        //     &vec![F::one(); 10],
+        //     &index_vk.verifier_key,
+        //     rng
+        // );
+
+        // println!("{:?}", is_valid);
 
         if !evaluations_are_correct {
             eprintln!("PC::Check failed");
