@@ -1040,22 +1040,6 @@ impl<F: PrimeField> AHPForR1CS<F> {
         assert!(h_2.degree() < 6 * domain_k.size() - 6);
         assert!(g_2.degree() <= domain_k.size() - 2);
 
-        let a_vo_test = DensePolynomial::<F>::rand(domain_k.size(), r);
-        let b_vo_test = DensePolynomial::<F>::rand(domain_k.size(), r);
-
-        let zero_over_k_vo = AddVO {};
-
-        // let zero_over_k_proof = ZeroOverK::<F, PC, FS>::prove(
-        //     &concrete_oracles,
-        //     &commitments,
-        //     &rands,
-        //     &zero_over_k_vo,
-        //     &alphas,
-        //     &domain_k,
-        //     &ck,
-        //     r,
-        // );
-
         let oracles = ProverIndexPrivateThirdOracles {
             f: LabeledPolynomial::new(
                 "f".to_string(),

@@ -23,7 +23,7 @@ use core::iter;
 use ark_ff::{to_bytes, PrimeField, UniformRand};
 use ark_poly::UVPolynomial;
 use ark_poly::{univariate::DensePolynomial, EvaluationDomain, GeneralEvaluationDomain};
-use ark_poly_commit::{Evaluations, LabeledPolynomial};
+use ark_poly_commit::{Evaluations, LabeledPolynomial, PCRandomness};
 use ark_poly_commit::{LabeledCommitment, PCUniversalParams, PolynomialCommitment};
 use ark_relations::r1cs::ConstraintSynthesizer;
 use ark_std::rand::RngCore;
@@ -31,7 +31,6 @@ use crate::virtual_oracle::rational_sumcheck_vo::RationalSumcheckVO;
 use crate::virtual_oracle::{AddVO, rational_sumcheck_vo};
 use crate::zero_over_k::ZeroOverK;
 use crate::zero_over_k::commitment::HomomorphicPolynomialCommitment;
-
 
 use ark_std::{
     collections::BTreeMap,
@@ -532,40 +531,15 @@ impl<F: PrimeField, PC: HomomorphicPolynomialCommitment<F>, FS: FiatShamirRng>
         fs_rng.absorb(&evaluations);
         let opening_challenge: F = u128::rand(&mut fs_rng).into();
 
-        let a = DensePolynomial::<F>::rand(domain_k.size(), zk_rng);
-        let a = LabeledPolynomial::new(String::from("a"), a.clone(), None, None);
-        let b = DensePolynomial::<F>::rand(domain_k.size(), zk_rng);
-        let b = LabeledPolynomial::new(String::from("b"), b.clone(), None, None);
-
-        let test_oracles = [a, b];
-
-        let (commits, rands) = PC::commit(
-            &index_pk.committer_key,
-            test_oracles.iter(),
-            None,
-        )
-        .map_err(Error::from_pc_err)?;
-
-        let zero_over_k_vo = AddVO {};
-
-        let zero_over_k_proof = ZeroOverK::<F, PC, FS>::prove(
-            &test_oracles,
-            &commits,
-            &rands,
-            &zero_over_k_vo,
-            &[F::one(), F::one()].to_vec(),
-            &domain_k,
-            &index_pk.committer_key,
-            zk_rng,
-        );
-
         let concrete_oracles = [
             index_pk.index.a_arith.row.clone(),
             index_pk.index.a_arith.col.clone(),
             index_pk.index.a_arith.val.clone(),
+
             index_pk.index.b_arith.row.clone(),
             index_pk.index.b_arith.col.clone(),
             index_pk.index.b_arith.val.clone(),
+
             index_pk.index.c_arith.row.clone(),
             index_pk.index.c_arith.col.clone(),
             index_pk.index.c_arith.val.clone(),
@@ -592,11 +566,12 @@ impl<F: PrimeField, PC: HomomorphicPolynomialCommitment<F>, FS: FiatShamirRng>
 
         rational_sumcheck_commitments.push(LabeledCommitment::new("f".into(), third_comms[0].commitment().clone(), None));
 
-
+        let empty_rands = vec![PC::Randomness::empty(); concrete_oracles.len()];
+            
         let rational_sumcheck_proof = ZeroOverK::<F, PC, FS>::prove(
             &concrete_oracles,
             &rational_sumcheck_commitments,
-            &rands,
+            empty_rands.as_slice(),
             &rational_sumcheck_vo,
             &vec![F::one(); concrete_oracles.len()],
             &domain_k,
@@ -887,17 +862,17 @@ impl<F: PrimeField, PC: HomomorphicPolynomialCommitment<F>, FS: FiatShamirRng>
 
         rational_sumcheck_commitments.push(LabeledCommitment::new("f".into(), third_comms[0].clone(), None)); // TODO f should also be bounded with |K| -1
 
-        // let is_valid = ZeroOverK::<F, PC, FS>::verify(
-        //     &proof.rational_sumcheck_zero_over_k_proof,
-        //     &rational_sumcheck_commitments,
-        //     &rational_sumcheck_vo,
-        //     &domain_k,
-        //     &vec![F::one(); 10],
-        //     &index_vk.verifier_key,
-        //     rng
-        // );
+        let is_valid = ZeroOverK::<F, PC, FS>::verify(
+            &proof.rational_sumcheck_zero_over_k_proof,
+            &rational_sumcheck_commitments,
+            &rational_sumcheck_vo,
+            &domain_k,
+            &vec![F::one(); 10],
+            &index_vk.verifier_key,
+            rng
+        );
 
-        // println!("{:?}", is_valid);
+        println!("{:?}", is_valid);
 
         if !evaluations_are_correct {
             eprintln!("PC::Check failed");
