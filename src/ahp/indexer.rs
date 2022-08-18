@@ -1,6 +1,6 @@
 #![allow(non_snake_case)]
 
-use ark_std::collections::BTreeSet;
+use ark_std::collections::{BTreeSet, BTreeMap};
 
 use crate::ahp::{
     constraint_systems::{
@@ -104,6 +104,28 @@ pub(crate) fn sum_matrices<F: PrimeField>(
         .collect()
 }
 
+/// Calculates the number of non-zero elements in the overlay of all matrices in the given list of
+/// matrices. e.g. if there are three matrices [0], [1], and [1] then the number of non-zero
+/// elements is 1 (and not 2).
+pub(crate) fn num_non_zero_of_matrices<F: PrimeField>(
+    matrices: &[&Matrix<F>],
+) -> usize {
+    let mut sum = 0;
+    let mut seen = BTreeMap::new();
+    for matrix in matrices.iter() {
+        for (i, row) in matrix.iter().enumerate() {
+            for val in row.iter() {
+                let k = (i, val.1);
+                if !seen.contains_key(&k) {
+                    sum += 1;
+                    seen.insert(k, true);
+                }
+            }
+        }
+    }
+    sum
+}
+
 #[derive(Derivative)]
 #[derivative(Clone(bound = "F: PrimeField"))]
 /// The indexed version of the constraint system.
@@ -201,8 +223,8 @@ impl<F: PrimeField> AHPForR1CS<F> {
         assert_eq!(matrix_a.len(), matrix_b.len());
         assert_eq!(matrix_b.len(), matrix_c.len());
 
-        let joint_matrix = sum_matrices(&matrix_a, &matrix_b, &matrix_c);
-        let num_non_zero_val = num_non_zero(&joint_matrix);
+        let num_non_zero_val = num_non_zero_of_matrices(&[&matrix_a, &matrix_b, &matrix_c]);
+
         let num_constraints = matrix_a.len();
 
         if !Self::num_formatted_public_inputs_is_admissible(num_formatted_input_variables) {
