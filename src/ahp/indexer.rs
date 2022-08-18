@@ -175,6 +175,11 @@ impl<F: PrimeField> Index<F> {
 }
 
 impl<F: PrimeField> AHPForR1CS<F> {
+    /// Generate the index for matrices.
+    pub fn index_matrices() {
+        eprintln!("Hello");
+    }
+
     /// Generate the index for this constraint system.
     pub fn index<C: ConstraintSynthesizer<F>>(c: C) -> Result<Index<F>, Error> {
         let index_time = start_timer!(|| "AHP::Index");
