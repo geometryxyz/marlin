@@ -138,6 +138,22 @@ pub struct Index<F: PrimeField> {
     pub(crate) c_arith: IndividualMatrixArithmetization<F>,
 }
 
+#[derive(Derivative)]
+#[derivative(Clone(bound = "F: PrimeField"))]
+/// The index-private version of the constraint system.
+/// TODO: rename it
+#[derive(CanonicalSerialize, CanonicalDeserialize)]
+pub struct IndexPrivate<F: PrimeField> {
+    /// The A matrix arithmetization
+    pub(crate) a_arith: IndividualMatrixArithmetization<F>,
+
+    /// The B matrix arithmetization
+    pub(crate) b_arith: IndividualMatrixArithmetization<F>,
+
+    /// The C matrix arithmetization
+    pub(crate) c_arith: IndividualMatrixArithmetization<F>,
+}
+
 impl<F: PrimeField> Index<F> {
     /// The maximum degree required to represent polynomials of this index.
     pub fn max_degree(&self) -> usize {
@@ -176,8 +192,44 @@ impl<F: PrimeField> Index<F> {
 
 impl<F: PrimeField> AHPForR1CS<F> {
     /// Generate the index for matrices.
-    pub fn index_matrices() {
-        eprintln!("Hello");
+    pub fn index_matrices(
+            matrix_a: Matrix<F>,
+            matrix_b: Matrix<F>,
+            matrix_c: Matrix<F>,
+            num_formatted_input_variables: usize,
+        ) -> Result<IndexPrivate<F>, Error> {
+        assert_eq!(matrix_a.len(), matrix_b.len());
+        assert_eq!(matrix_b.len(), matrix_c.len());
+
+        let joint_matrix = sum_matrices(&matrix_a, &matrix_b, &matrix_c);
+        let num_non_zero_val = num_non_zero(&joint_matrix);
+        let num_constraints = matrix_a.len();
+
+        if !Self::num_formatted_public_inputs_is_admissible(num_formatted_input_variables) {
+            return Err(Error::InvalidPublicInputLength);
+        }
+
+        let domain_h = GeneralEvaluationDomain::<F>::new(num_constraints)
+            .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+        let domain_k = GeneralEvaluationDomain::<F>::new(num_non_zero_val)
+            .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+        let x_domain = GeneralEvaluationDomain::<F>::new(num_formatted_input_variables)
+            .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+
+        let a_arith: IndividualMatrixArithmetization<F> =
+            arithmetize_individual_matrix(&matrix_a, domain_k, domain_h, x_domain, "a");
+
+        let b_arith: IndividualMatrixArithmetization<F> =
+            arithmetize_individual_matrix(&matrix_b, domain_k, domain_h, x_domain, "b");
+
+        let c_arith: IndividualMatrixArithmetization<F> =
+            arithmetize_individual_matrix(&matrix_c, domain_k, domain_h, x_domain, "c");
+
+        Ok(IndexPrivate {
+            a_arith,
+            b_arith,
+            c_arith,
+        })
     }
 
     /// Generate the index for this constraint system.
